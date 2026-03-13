@@ -83,7 +83,7 @@ const state = {
   calendar: {
     date: "",
     time: "",
-    title: "Meeting from Times",
+    title: "",
     durationMinutes: 30,
     initializedForKey: ""
   },
@@ -546,7 +546,6 @@ function ensureCalendarState(force = false) {
   const baseDate = new Date(Date.UTC(current.year, current.month - 1, current.day, 12, 0, 0));
   state.calendar.date = formatDateInputValue(baseDate);
   state.calendar.time = formatTimeInputValue(current.minutes);
-  state.calendar.title = state.calendar.title || "Meeting from Times";
   state.calendar.durationMinutes = state.calendar.durationMinutes || 30;
   state.calendar.initializedForKey = key;
 }
@@ -1769,10 +1768,25 @@ settingsPopoverEl.addEventListener("click", async (event) => {
   }
 
   if (actionButton.dataset.role === "open-in-side-panel") {
-    state.preferences.openInSidePanel = state.preferences.openInSidePanel !== true;
+    const nextOpenInSidePanel = state.preferences.openInSidePanel !== true;
+    state.preferences.openInSidePanel = nextOpenInSidePanel;
     state.settingsOpen = false;
     await persist();
     chrome.runtime?.sendMessage?.({ type: "times:preferences-updated" });
+
+    if (nextOpenInSidePanel && surface === "popup" && globalThis.chrome?.sidePanel?.open) {
+      try {
+        const currentWindow = await chrome.windows.getCurrent();
+        if (currentWindow?.id) {
+          await chrome.sidePanel.open({ windowId: currentWindow.id });
+          window.close();
+          return;
+        }
+      } catch (error) {
+        console.error("Unable to switch from popup to side panel", error);
+      }
+    }
+
     render();
     return;
   }
