@@ -1,55 +1,105 @@
 # Times
 
-`Times` is a minimalist Chrome extension for comparing time zones without a settings-heavy workflow.
+`Times` is a Chrome extension for checking other cities fast, comparing times inline, and quickly sending the current selection to Google Calendar.
 
-The popup is designed around direct manipulation:
-- click a city name to rename it inline
-- click a time to set a comparison reference
-- drag cards to reorder them
+It is built to feel direct:
+- click a city name to change it
+- click a time to compare against a different hour
+- drag cities to reorder them
 - click `+` to add another city
-- use the header settings button to switch between `12h` and `24h`
+- use settings for `12h / 24h`, dark mode, pinning, and side panel behavior
 
-## Current behavior
+## What It Does
 
-When you edit the time on one row, that row becomes the active reference time and every other row updates to the matching local time for the same moment. Reset clears the comparison and returns the list to live time.
+- Shows multiple cities at once in a clean list
+- Lets you edit a city name without opening a settings page
+- Lets you change the time in one row and instantly see that same moment in every other row
+- Lets you add a Google Calendar event from the current selected time
+- Supports both popup mode and Chrome side panel mode
+- Saves your cities and preferences locally
 
-The UI intentionally avoids extra chrome:
-- no separate settings page for normal use
-- no visible drag handles
-- no motion effects
-- no country labels
-- only a sun icon for daylight and a moon icon for dark hours
-
-## Features
-
-- Chrome Manifest V3 popup extension
-- Persistent local state with `chrome.storage.local`
-- Inline city editing with timezone lookup
-- Inline reference-time editing with global recalculation
-- Reset for the active comparison source
-- Drag and drop reordering
-- Header `+` add flow
-- Header time format toggle
-- Apple-style system font stack on macOS
-
-## Files
-
-- `manifest.json`: extension manifest
-- `icons/icon.svg`: source vector for the extension icon
-- `icons/icon-16.png`, `icons/icon-32.png`, `icons/icon-48.png`, `icons/icon-128.png`: Chrome icon exports
-- `popup.html`: popup markup
-- `popup.css`: visual system and layout
-- `popup.js`: popup state, rendering, storage, and interactions
-
-## Load in Chrome
+## How To Install
 
 1. Open `chrome://extensions`
-2. Turn on Developer mode
+2. Turn on `Developer mode`
 3. Click `Load unpacked`
-4. Select `/Users/slm/my-portfolio/timezone-extension`
+4. Choose this folder:
+   `/Users/slm/my-portfolio/timezone-extension`
+
+After that, pin the extension to your Chrome toolbar if you want faster access.
+
+## How To Use
+
+### Edit a city
+
+Click the city name.
+
+Start typing and a list of matching cities and time zones will appear. Pick one from the list or finish typing your preferred label.
+
+### Compare a different time
+
+Click the time in any row.
+
+You can:
+- type the hour or minute
+- use the mouse wheel on the hour field
+- use the mouse wheel on the minute field
+
+When you change one row, all other rows update to show that same moment in their own local time.
+
+To go back to the real current time, use `Use current time` at the top.
+
+### Reorder cities
+
+Drag a row from the empty middle area of the card.
+
+If `Pin first timezone` is turned on, the first row stays fixed at the top.
+
+### Add a city
+
+Click `+` below the list, then start typing.
+
+### Remove a city
+
+Click into the city name, then use `Remove city`.
+
+### Calendar view
+
+Click the calendar button in the top left.
+
+From there you can:
+- choose a date
+- choose a time
+- choose a duration
+- optionally enter an event name
+- open a prefilled Google Calendar event
+
+## Settings
+
+Open settings from the top right.
+
+Available settings:
+- `12h / 24h`
+- `Pin first timezone`
+- `Open in side panel`
+- `Dark mode`
+
+If you turn on `Open in side panel` while using the popup, the popup closes and the extension opens in the side panel immediately.
+
+## Privacy
+
+`Times` stores your cities and preferences locally in Chrome storage.
+
+It does not require an account.
+
+## License
+
+`Times` is licensed under the GNU Affero General Public License v3.0.
+
+See [`LICENSE`](/Users/slm/my-portfolio/timezone-extension/LICENSE) for the full text.
 
 ## Notes
 
-- State is stored locally in the browser.
-- The current drag-and-drop implementation uses native drag events inside the popup.
-- Timezone suggestions come from a small curated list plus `Intl.supportedValuesOf("timeZone")` when available.
+- The sun icon means it is daytime in that city.
+- The moon icon means it is dark there.
+- The pinned first timezone shows a pin next to the city name.

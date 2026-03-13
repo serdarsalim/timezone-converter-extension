@@ -920,7 +920,7 @@ function render() {
       if (isPinnedCity(city.id)) {
         const pin = document.createElement("span");
         pin.className = "card-pin";
-        pin.textContent = "📌";
+        pin.textContent = "📍";
         pin.ariaHidden = "true";
         button.appendChild(pin);
       }
