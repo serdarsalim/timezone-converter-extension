@@ -30,6 +30,13 @@ body {
   scrollbar-color: rgba(17, 19, 26, 0.24) transparent;
 }
 
+html[data-surface="sidepanel"],
+body[data-surface="sidepanel"] {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
 body::-webkit-scrollbar {
   width: 6px;
 }
@@ -50,6 +57,13 @@ input {
 
 .app {
   padding: 20px 18px 18px;
+}
+
+html[data-surface="sidepanel"] .app,
+body[data-surface="sidepanel"] .app {
+  width: 100%;
+  max-width: 100%;
+  padding: 16px 14px 18px;
 }
 
 .app-header {
@@ -118,6 +132,11 @@ input {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+html[data-surface="sidepanel"] .calendar-grid,
+body[data-surface="sidepanel"] .calendar-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .calendar-field {
@@ -308,7 +327,7 @@ input {
   right: 0;
   display: grid;
   gap: 4px;
-  min-width: 192px;
+  min-width: 212px;
   padding: 8px;
   border: 1px solid var(--card-border);
   border-radius: 14px;
@@ -316,6 +335,11 @@ input {
   box-shadow: 0 10px 24px rgba(20, 26, 38, 0.12);
   backdrop-filter: blur(16px);
   z-index: 5;
+}
+
+html[data-surface="sidepanel"] .settings-popover,
+body[data-surface="sidepanel"] .settings-popover {
+  max-width: calc(100vw - 28px);
 }
 
 .settings-label {
@@ -457,6 +481,13 @@ input {
   gap: 14px;
 }
 
+html[data-surface="sidepanel"] .card-top,
+body[data-surface="sidepanel"] .card-top,
+html[data-surface="sidepanel"] .card-bottom,
+body[data-surface="sidepanel"] .card-bottom {
+  gap: 10px;
+}
+
 .card-title-block,
 .card-time-block {
   min-width: 0;
@@ -502,6 +533,11 @@ input {
   cursor: text;
 }
 
+html[data-surface="sidepanel"] .card-name,
+body[data-surface="sidepanel"] .card-name {
+  max-width: min(52vw, 220px);
+}
+
 .card-title-label {
   min-width: 0;
   overflow: hidden;
@@ -522,6 +558,15 @@ input {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: text;
+}
+
+html[data-surface="sidepanel"] .card-time,
+body[data-surface="sidepanel"] .card-time,
+html[data-surface="sidepanel"] .card-time-segment,
+body[data-surface="sidepanel"] .card-time-segment,
+html[data-surface="sidepanel"] .card-time-separator,
+body[data-surface="sidepanel"] .card-time-separator {
+  font-size: 20px;
 }
 
 .card-time-editor {

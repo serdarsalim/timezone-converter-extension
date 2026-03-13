@@ -1,4 +1,10 @@
 const STORAGE_KEY = "timesStateV1";
+const surface = new URLSearchParams(window.location.search).get("surface") === "sidepanel"
+  ? "sidepanel"
+  : "popup";
+document.documentElement.dataset.surface = surface;
+document.body.dataset.surface = surface;
+
 const DEFAULT_CITIES = [
   { id: crypto.randomUUID(), label: "Local Time", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
   { id: crypto.randomUUID(), label: "Istanbul", timeZone: "Europe/Istanbul" },
@@ -83,7 +89,8 @@ const state = {
   },
   preferences: {
     timeFormat: "12h",
-    pinFirstTimezone: true
+    pinFirstTimezone: true,
+    openInSidePanel: false
   }
 };
 
@@ -299,7 +306,8 @@ function normalizeStoredState(stored) {
       compareState: null,
       preferences: {
         timeFormat: "12h",
-        pinFirstTimezone: true
+        pinFirstTimezone: true,
+        openInSidePanel: false
       }
     };
   }
@@ -309,7 +317,8 @@ function normalizeStoredState(stored) {
     compareState: stored.compareState ?? null,
     preferences: {
       timeFormat: stored.preferences?.timeFormat === "24h" ? "24h" : "12h",
-      pinFirstTimezone: stored.preferences?.pinFirstTimezone !== false
+      pinFirstTimezone: stored.preferences?.pinFirstTimezone !== false,
+      openInSidePanel: stored.preferences?.openInSidePanel === true
     }
   };
 }
@@ -796,6 +805,9 @@ function render() {
   const pinFirstTimezoneButton = settingsPopoverEl.querySelector('[data-role="pin-first-timezone"]');
   pinFirstTimezoneButton?.classList.toggle("is-active", isFirstTimezonePinned());
   pinFirstTimezoneButton?.setAttribute("aria-pressed", isFirstTimezonePinned() ? "true" : "false");
+  const openInSidePanelButton = settingsPopoverEl.querySelector('[data-role="open-in-side-panel"]');
+  openInSidePanelButton?.classList.toggle("is-active", state.preferences.openInSidePanel === true);
+  openInSidePanelButton?.setAttribute("aria-pressed", state.preferences.openInSidePanel === true ? "true" : "false");
 
   if (isCalendarView) {
     renderCalendarView();
@@ -1752,6 +1764,15 @@ settingsPopoverEl.addEventListener("click", async (event) => {
     state.preferences.pinFirstTimezone = !isFirstTimezonePinned();
     state.settingsOpen = false;
     await persist();
+    render();
+    return;
+  }
+
+  if (actionButton.dataset.role === "open-in-side-panel") {
+    state.preferences.openInSidePanel = state.preferences.openInSidePanel !== true;
+    state.settingsOpen = false;
+    await persist();
+    chrome.runtime?.sendMessage?.({ type: "times:preferences-updated" });
     render();
     return;
   }
