@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Times",
+  "version": "0.1.0",
+  "description": "Inline-editable timezone cards for fast comparison.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_title": "Times",
+    "default_popup": "popup.html"
+  }
+}

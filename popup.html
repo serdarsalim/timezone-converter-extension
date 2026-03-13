@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Times</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <div class="header-actions">
+          <button class="header-icon-button" id="settings-button" type="button" aria-label="Time format settings">⚙</button>
+          <div class="settings-popover hidden" id="settings-popover" aria-label="Time format">
+            <button class="settings-option" data-role="time-format" data-format="12h" type="button">12h</button>
+            <button class="settings-option" data-role="time-format" data-format="24h" type="button">24h</button>
+          </div>
+        </div>
+        <button class="header-add-button" id="header-add-button" type="button" aria-label="Add city">+</button>
+      </header>
+      <section class="cards" id="cards"></section>
+      <template id="card-template">
+        <article class="city-card" draggable="true">
+          <div class="card-top">
+            <div class="card-title-block">
+              <button class="card-name" type="button"></button>
+            </div>
+            <div class="card-time-block"></div>
+          </div>
+          <div class="card-bottom">
+            <p class="card-date"></p>
+            <div class="card-meta"></div>
+          </div>
+        </article>
+      </template>
+      <datalist id="timezone-options"></datalist>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+  </html>
