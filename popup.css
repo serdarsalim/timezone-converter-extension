@@ -88,32 +88,22 @@ html,
 body {
   margin: 0;
   width: 420px;
+  min-width: 420px;
+  max-width: 420px;
+  overflow: hidden;
   background: radial-gradient(circle at top, var(--bg-start) 0%, var(--bg) 52%, var(--bg-end) 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 html[data-surface="sidepanel"],
 body[data-surface="sidepanel"] {
   width: 100%;
   min-width: 0;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
   overflow-x: hidden;
-}
-
-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-body::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: var(--scroll-thumb);
 }
 
 button,
@@ -122,23 +112,35 @@ input {
 }
 
 .app {
-  padding: 20px 18px 18px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 420px;
+  min-width: 420px;
+  max-width: 420px;
+  height: 600px;
+  overflow: hidden;
 }
 
 html[data-surface="sidepanel"] .app,
 body[data-surface="sidepanel"] .app {
   width: 100%;
+  min-width: 0;
   max-width: 100%;
-  padding: 16px 14px 18px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .app-header {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
+  padding: 20px 18px 14px;
+  background: radial-gradient(circle at top, var(--bg-start) 0%, var(--bg) 52%, var(--bg-end) 100%);
 }
 
 .header-center {
@@ -188,6 +190,29 @@ body[data-surface="sidepanel"] .app {
   position: relative;
 }
 
+.app-scroll {
+  min-height: 0;
+  padding: 14px 18px 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.app-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.app-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scroll-thumb);
+}
+
 .cards {
   display: grid;
   gap: 12px;
@@ -224,6 +249,18 @@ body[data-surface="sidepanel"] .app {
 html[data-surface="sidepanel"] .calendar-grid,
 body[data-surface="sidepanel"] .calendar-grid {
   grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-surface="sidepanel"] .app-header,
+body[data-surface="sidepanel"] .app-header,
+html[data-surface="sidepanel"] .app-scroll,
+body[data-surface="sidepanel"] .app-scroll {
+  padding-inline: 14px;
+}
+
+html[data-surface="sidepanel"] .app-header,
+body[data-surface="sidepanel"] .app-header {
+  padding-top: 16px;
 }
 
 .calendar-field {

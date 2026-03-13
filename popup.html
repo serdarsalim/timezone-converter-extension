@@ -49,52 +49,54 @@
           </div>
         </div>
       </header>
-      <section class="cards" id="cards"></section>
-      <div class="add-button-wrap">
-        <button class="floating-add-button" id="header-add-button" type="button" aria-label="Add city">+</button>
-      </div>
-      <section class="calendar-view hidden" id="calendar-view">
-        <article class="calendar-card">
-          <div class="calendar-grid">
-            <label class="calendar-field">
-              <span class="calendar-label">Date</span>
-              <input class="calendar-input" id="calendar-date" type="date">
-            </label>
-            <label class="calendar-field">
-              <span class="calendar-label">Time</span>
-              <div class="calendar-time-editor">
-                <input class="calendar-segment-input" id="calendar-hour" type="text" inputmode="numeric" maxlength="2" aria-label="Hour">
-                <span class="calendar-time-separator">:</span>
-                <input class="calendar-segment-input" id="calendar-minute" type="text" inputmode="numeric" maxlength="2" aria-label="Minute">
-                <select class="calendar-period-select" id="calendar-period" aria-label="AM or PM">
-                  <option value="AM">AM</option>
-                  <option value="PM">PM</option>
-                </select>
-              </div>
-            </label>
-          </div>
-          <label class="calendar-field">
-            <span class="calendar-label">Event name</span>
-            <input class="calendar-input" id="calendar-title" type="text" placeholder="">
-          </label>
-          <div class="calendar-field">
-            <span class="calendar-label">Duration</span>
-            <div class="duration-options" id="duration-options">
-              <button class="duration-option" data-role="duration-option" data-minutes="15" type="button">15m</button>
-              <button class="duration-option is-active" data-role="duration-option" data-minutes="30" type="button">30m</button>
-              <button class="duration-option" data-role="duration-option" data-minutes="45" type="button">45m</button>
-              <button class="duration-option" data-role="duration-option" data-minutes="60" type="button">1h</button>
-            </div>
-          </div>
-          <div class="calendar-preview">
-            <p class="calendar-label">Time across cities</p>
-            <div class="calendar-preview-list" id="calendar-preview-list"></div>
-          </div>
-        </article>
-        <div class="calendar-submit-wrap">
-          <button class="calendar-submit" id="calendar-submit" type="button">Add to calendar</button>
+      <div class="app-scroll">
+        <section class="cards" id="cards"></section>
+        <div class="add-button-wrap">
+          <button class="floating-add-button" id="header-add-button" type="button" aria-label="Add city">+</button>
         </div>
-      </section>
+        <section class="calendar-view hidden" id="calendar-view">
+          <article class="calendar-card">
+            <div class="calendar-grid">
+              <label class="calendar-field">
+                <span class="calendar-label">Date</span>
+                <input class="calendar-input" id="calendar-date" type="date">
+              </label>
+              <label class="calendar-field">
+                <span class="calendar-label">Time</span>
+                <div class="calendar-time-editor">
+                  <input class="calendar-segment-input" id="calendar-hour" type="text" inputmode="numeric" maxlength="2" aria-label="Hour">
+                  <span class="calendar-time-separator">:</span>
+                  <input class="calendar-segment-input" id="calendar-minute" type="text" inputmode="numeric" maxlength="2" aria-label="Minute">
+                  <select class="calendar-period-select" id="calendar-period" aria-label="AM or PM">
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </label>
+            </div>
+            <label class="calendar-field">
+              <span class="calendar-label">Event name</span>
+              <input class="calendar-input" id="calendar-title" type="text" placeholder="">
+            </label>
+            <div class="calendar-field">
+              <span class="calendar-label">Duration</span>
+              <div class="duration-options" id="duration-options">
+                <button class="duration-option" data-role="duration-option" data-minutes="15" type="button">15m</button>
+                <button class="duration-option is-active" data-role="duration-option" data-minutes="30" type="button">30m</button>
+                <button class="duration-option" data-role="duration-option" data-minutes="45" type="button">45m</button>
+                <button class="duration-option" data-role="duration-option" data-minutes="60" type="button">1h</button>
+              </div>
+            </div>
+            <div class="calendar-preview">
+              <p class="calendar-label">Time across cities</p>
+              <div class="calendar-preview-list" id="calendar-preview-list"></div>
+            </div>
+          </article>
+          <div class="calendar-submit-wrap">
+            <button class="calendar-submit" id="calendar-submit" type="button">Add to calendar</button>
+          </div>
+        </section>
+      </div>
       <template id="card-template">
         <article class="city-card" draggable="true">
           <div class="card-top">
