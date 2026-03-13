@@ -21,14 +21,10 @@
 html,
 body {
   margin: 0;
-  min-width: 420px;
+  width: 420px;
   background: radial-gradient(circle at top, #faf9f6 0%, var(--bg) 52%, #efede7 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
-}
-
-body {
-  min-height: 100vh;
 }
 
 button,
