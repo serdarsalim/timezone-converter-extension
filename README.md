@@ -1,6 +1,6 @@
-# Times
+# Asr World Clock
 
-`Times` is a Chrome extension for checking other cities fast, comparing times inline, and quickly sending the current selection to Google Calendar.
+`Asr World Clock` is a Chrome extension for checking other cities fast, comparing times inline, and quickly sending the current selection to Google Calendar.
 
 It is built to feel direct:
 - click a city name to change it
@@ -88,13 +88,13 @@ If you turn on `Open in side panel` while using the popup, the popup closes and 
 
 ## Privacy
 
-`Times` stores your cities and preferences locally in Chrome storage.
+`Asr World Clock` stores your cities and preferences locally in Chrome storage.
 
 It does not require an account.
 
 ## License
 
-`Times` is licensed under the GNU Affero General Public License v3.0.
+`Asr World Clock` is licensed under the GNU Affero General Public License v3.0.
 
 See [`LICENSE`](/Users/slm/my-portfolio/timezone-extension/LICENSE) for the full text.
 

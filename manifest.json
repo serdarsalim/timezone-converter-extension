@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Times",
+  "name": "Asr World Clock",
   "version": "2026.3.13",
-  "description": "Inline-editable timezone cards for fast comparison.",
+  "description": "Minimalist time zone converter for Chrome.",
   "permissions": [
     "storage",
     "sidePanel"
@@ -20,7 +20,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Times",
+    "default_title": "Asr World Clock",
     "default_popup": "popup.html?surface=popup",
     "default_icon": {
       "16": "icons/icon-16.png",

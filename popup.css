@@ -157,6 +157,27 @@ body[data-surface="sidepanel"] .app {
   box-shadow: var(--card-shadow);
 }
 
+.header-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header-brand-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.header-brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
 .header-group {
   display: flex;
   align-items: center;

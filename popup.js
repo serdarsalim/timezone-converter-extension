@@ -612,12 +612,12 @@ function getCalendarEventUrl() {
     "",
     ...state.cities.map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`),
     "",
-    "Created with Times",
+    "Created with Asr World Clock",
     "---------------------------------------------"
   ];
 
   const params = new URLSearchParams({
-    text: state.calendar.title.trim() || "Meeting from Times",
+    text: state.calendar.title.trim() || "Meeting from Asr World Clock",
     dates: `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
     details: detailsLines.join("\n"),
     ctz: baseCity.timeZone

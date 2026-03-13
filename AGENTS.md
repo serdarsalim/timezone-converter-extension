@@ -2,7 +2,7 @@
 
 ## Project
 
-This repo contains `Times`, a minimalist Chrome extension for comparing time zones from a popup UI.
+This repo contains `Asr World Clock`, a minimalist Chrome extension for comparing time zones from a popup UI.
 
 ## Product rules
 

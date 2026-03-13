@@ -3,17 +3,21 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Times</title>
+    <title>Asr World Clock</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main class="app">
       <header class="app-header">
-        <button class="header-icon-button calendar-toggle-button" id="calendar-toggle-button" type="button" aria-label="Toggle calendar view">🗓</button>
+        <div class="header-brand" aria-label="Asr">
+          <img class="header-brand-icon" src="icons/icon-32.png" alt="" width="20" height="20">
+          <span class="header-brand-name">ASR</span>
+        </div>
         <div class="header-center">
           <button class="reset-button header-reset-button hidden" id="header-reset-button" type="button">Use current time</button>
         </div>
         <div class="header-group">
+          <button class="header-icon-button calendar-toggle-button" id="calendar-toggle-button" type="button" aria-label="Toggle calendar view">🗓</button>
           <div class="header-actions">
             <button class="header-icon-button" id="settings-button" type="button" aria-label="Time format settings">⚙</button>
             <div class="settings-popover hidden" id="settings-popover" aria-label="Time format">
