@@ -55,6 +55,8 @@ const state = {
   dragId: null,
   dragTargetId: null,
   addMode: false,
+  addDraft: "",
+  addTouched: false,
   compareState: null,
   settingsOpen: false,
   focusTarget: null,
@@ -586,30 +588,22 @@ function createResetButton(id) {
 
 function renderAddCard() {
   const wrapper = document.createElement("div");
-
-  if (!state.addMode) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "add-button";
-    button.dataset.role = "add-button";
-    button.innerHTML = '<span class="add-button-text">+ Add city</span>';
-    wrapper.appendChild(button);
-    return wrapper;
-  }
-
   const card = document.createElement("article");
   card.className = "city-card add-card";
   const form = document.createElement("form");
   form.className = "add-form";
   form.dataset.role = "add-form";
 
+  const searchShell = document.createElement("div");
+  searchShell.className = "name-search-shell";
   const input = document.createElement("input");
   input.className = "add-input";
   input.type = "text";
-  input.placeholder = "City or timezone";
+  input.placeholder = "Search city or timezone";
   input.dataset.role = "add-input";
-  input.setAttribute("list", "timezone-options");
+  input.value = state.addDraft;
   input.autocomplete = "off";
+  searchShell.appendChild(input);
 
   const cancel = document.createElement("button");
   cancel.type = "button";
@@ -617,8 +611,52 @@ function renderAddCard() {
   cancel.textContent = "Cancel";
   cancel.dataset.role = "cancel-add";
 
-  form.append(input, cancel);
+  form.append(searchShell, cancel);
   card.append(form);
+
+  if (state.addTouched && normalizeQuery(state.addDraft)) {
+    const results = getNameSuggestions(state.addDraft);
+    const list = document.createElement("div");
+    list.className = "name-suggestion-list";
+
+    if (results.length) {
+      for (const result of results) {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "name-suggestion-item";
+        option.dataset.role = "add-suggestion";
+        option.dataset.label = result.label;
+        option.dataset.timeZone = result.timeZone;
+
+        const copy = document.createElement("span");
+        copy.className = "name-suggestion-copy";
+
+        const label = document.createElement("span");
+        label.className = "name-suggestion-label";
+        label.textContent = result.label;
+
+        const zone = document.createElement("span");
+        zone.className = "name-suggestion-zone";
+        zone.textContent = result.timeZone;
+
+        const match = document.createElement("span");
+        match.className = "name-suggestion-match";
+        match.textContent = result.matchType;
+
+        copy.append(label, zone);
+        option.append(copy, match);
+        list.appendChild(option);
+      }
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "name-suggestion-empty";
+      empty.textContent = "No matching time zones";
+      list.appendChild(empty);
+    }
+
+    card.append(list);
+  }
+
   wrapper.append(card);
   return wrapper;
 }
@@ -767,7 +805,6 @@ async function commitTimeEdit(id, value) {
 async function addCity(value) {
   const suggestion = findSuggestion(value);
   if (!suggestion) {
-    state.addMode = false;
     render();
     return;
   }
@@ -778,6 +815,21 @@ async function addCity(value) {
     timeZone: suggestion.timeZone
   });
   state.addMode = false;
+  state.addDraft = "";
+  state.addTouched = false;
+  await persist();
+  render();
+}
+
+async function addCitySuggestion(label, timeZone) {
+  state.cities.push({
+    id: crypto.randomUUID(),
+    label,
+    timeZone
+  });
+  state.addMode = false;
+  state.addDraft = "";
+  state.addTouched = false;
   await persist();
   render();
 }
@@ -826,6 +878,8 @@ cardsEl.addEventListener("click", async (event) => {
 
   if (role === "cancel-add") {
     state.addMode = false;
+    state.addDraft = "";
+    state.addTouched = false;
     render();
   }
 });
@@ -840,6 +894,8 @@ cardsEl.addEventListener("keydown", async (event) => {
     state.editingNameTouched = false;
     state.editingTimeId = null;
     state.addMode = false;
+    state.addDraft = "";
+    state.addTouched = false;
     state.settingsOpen = false;
     state.focusTarget = null;
     render();
@@ -890,7 +946,19 @@ cardsEl.addEventListener("focusout", async (event) => {
     await commitTimeEdit(id, event.target.value);
   }
   if (role === "add-input") {
-    await addCity(event.target.value);
+    const value = event.target.value;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(async () => {
+        const activeRole = document.activeElement?.dataset?.role;
+        if (activeRole === "add-input") {
+          return;
+        }
+        if (!state.addMode) {
+          return;
+        }
+        await addCity(value);
+      });
+    });
   }
 });
 
@@ -909,6 +977,17 @@ cardsEl.addEventListener("input", (event) => {
     };
     render();
   }
+
+  if (role === "add-input" && state.addMode) {
+    state.addDraft = event.target.value;
+    state.addTouched = true;
+    state.focusTarget = {
+      type: "add",
+      caretStart: event.target.selectionStart ?? event.target.value.length,
+      caretEnd: event.target.selectionEnd ?? event.target.value.length
+    };
+    render();
+  }
 });
 
 cardsEl.addEventListener("mousedown", async (event) => {
@@ -921,6 +1000,15 @@ cardsEl.addEventListener("mousedown", async (event) => {
       option.dataset.timeZone
     );
   }
+
+  if (event.target?.closest('[data-role="add-suggestion"]')) {
+    event.preventDefault();
+    const option = event.target.closest('[data-role="add-suggestion"]');
+    await addCitySuggestion(
+      option.dataset.label,
+      option.dataset.timeZone
+    );
+  }
 });
 
 initialize();
@@ -928,6 +1016,8 @@ initialize();
 headerAddButtonEl.addEventListener("click", () => {
   state.settingsOpen = false;
   state.addMode = !state.addMode;
+  state.addDraft = "";
+  state.addTouched = false;
   state.focusTarget = state.addMode ? { type: "add", selectAll: false } : null;
   render();
 });
