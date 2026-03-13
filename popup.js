@@ -1361,8 +1361,9 @@ async function removeCity(id) {
 }
 
 cardsEl.addEventListener("click", async (event) => {
-  const role = event.target?.dataset?.role;
-  const id = event.target?.dataset?.id;
+  const action = event.target.closest("[data-role]");
+  const role = action?.dataset?.role;
+  const id = action?.dataset?.id;
 
   if (role === "name-button") {
     state.editingNameId = id;
@@ -1742,7 +1743,12 @@ settingsButtonEl.addEventListener("click", (event) => {
 });
 
 settingsPopoverEl.addEventListener("click", async (event) => {
-  if (event.target?.dataset?.role === "pin-first-timezone") {
+  const actionButton = event.target.closest("[data-role]");
+  if (!actionButton) {
+    return;
+  }
+
+  if (actionButton.dataset.role === "pin-first-timezone") {
     state.preferences.pinFirstTimezone = !isFirstTimezonePinned();
     state.settingsOpen = false;
     await persist();
@@ -1750,11 +1756,11 @@ settingsPopoverEl.addEventListener("click", async (event) => {
     return;
   }
 
-  if (event.target?.dataset?.role !== "time-format") {
+  if (actionButton.dataset.role !== "time-format") {
     return;
   }
 
-  state.preferences.timeFormat = event.target.dataset.format === "24h" ? "24h" : "12h";
+  state.preferences.timeFormat = actionButton.dataset.format === "24h" ? "24h" : "12h";
   state.settingsOpen = false;
   await persist();
   render();
