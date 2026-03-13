@@ -165,6 +165,11 @@ input {
   justify-content: flex-end;
 }
 
+.card-edit-zone {
+  display: grid;
+  gap: 8px;
+}
+
 .card-name,
 .card-time {
   border: 0;
@@ -242,6 +247,95 @@ input {
 .name-input {
   font-size: 20px;
   font-weight: 700;
+}
+
+.name-search-shell {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(17, 19, 26, 0.08);
+  border-radius: 16px;
+  background: rgba(17, 19, 26, 0.04);
+}
+
+.name-search-shell::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  flex: 0 0 auto;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='7' cy='7' r='4.5' stroke='%23808793' stroke-width='1.4'/%3E%3Cpath d='M10.5 10.5 14 14' stroke='%23808793' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.name-input {
+  flex: 1 1 auto;
+}
+
+.name-suggestion-list {
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid rgba(17, 19, 26, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 12px 24px rgba(20, 26, 38, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.name-suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.name-suggestion-item:hover,
+.name-suggestion-item:focus-visible {
+  background: rgba(17, 19, 26, 0.06);
+  outline: none;
+}
+
+.name-suggestion-copy {
+  min-width: 0;
+}
+
+.name-suggestion-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.name-suggestion-zone {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.name-suggestion-match {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.name-suggestion-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .time-input {

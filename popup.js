@@ -49,12 +49,15 @@ const settingsPopoverEl = document.querySelector("#settings-popover");
 const state = {
   cities: [],
   editingNameId: null,
+  editingNameDraft: "",
+  editingNameTouched: false,
   editingTimeId: null,
   dragId: null,
   dragTargetId: null,
   addMode: false,
   compareState: null,
   settingsOpen: false,
+  focusTarget: null,
   preferences: {
     timeFormat: "12h"
   }
@@ -118,6 +121,44 @@ function fillDatalist() {
     fragment.appendChild(option);
   }
   datalistEl.replaceChildren(fragment);
+}
+
+function normalizeQuery(value) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function getNameSuggestions(query, limit = 6) {
+  const normalized = normalizeQuery(query);
+  if (!normalized) {
+    return [];
+  }
+
+  return suggestions
+    .map((item) => {
+      const label = item.label.toLowerCase();
+      const zone = item.timeZone.toLowerCase().replace(/_/g, " ");
+      let rank = 99;
+      let matchType = "";
+
+      if (label === normalized) {
+        rank = 0;
+        matchType = "exact";
+      } else if (label.startsWith(normalized)) {
+        rank = 1;
+        matchType = "city";
+      } else if (label.includes(normalized)) {
+        rank = 2;
+        matchType = "city";
+      } else if (zone.includes(normalized)) {
+        rank = 3;
+        matchType = "zone";
+      }
+
+      return rank === 99 ? null : { ...item, rank, matchType };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label))
+    .slice(0, limit);
 }
 
 function getFormatter(timeZone) {
@@ -307,7 +348,7 @@ function getStatus(minutes) {
 }
 
 function findSuggestion(value) {
-  const normalized = value.trim().toLowerCase().replace(/\s+/g, " ");
+  const normalized = normalizeQuery(value);
   if (!normalized) {
     return null;
   }
@@ -338,14 +379,22 @@ async function persist() {
   });
 }
 
-function focusAndSelect(selector) {
+function focusAndSelect(selector, focusOptions = {}) {
   requestAnimationFrame(() => {
     const target = document.querySelector(selector);
     if (!target) {
       return;
     }
     target.focus();
-    if (typeof target.select === "function") {
+    if (
+      typeof target.setSelectionRange === "function" &&
+      Number.isInteger(focusOptions.caretStart) &&
+      Number.isInteger(focusOptions.caretEnd)
+    ) {
+      target.setSelectionRange(focusOptions.caretStart, focusOptions.caretEnd);
+      return;
+    }
+    if (focusOptions.selectAll && typeof target.select === "function") {
       target.select();
     }
   });
@@ -384,6 +433,7 @@ function render() {
 
     const nameHost = node.querySelector(".card-title-block");
     const timeHost = node.querySelector(".card-time-block");
+    const editZoneEl = node.querySelector(".card-edit-zone");
     const dateEl = node.querySelector(".card-date");
     const metaEl = node.querySelector(".card-meta");
 
@@ -391,15 +441,62 @@ function render() {
     dateEl.textContent = dateText;
 
     if (state.editingNameId === city.id) {
+      const searchShell = document.createElement("div");
+      searchShell.className = "name-search-shell";
       const input = document.createElement("input");
       input.className = "inline-input name-input";
       input.type = "text";
-      input.value = city.label;
+      input.value = state.editingNameDraft;
       input.dataset.role = "name-input";
       input.dataset.id = city.id;
-      input.setAttribute("list", "timezone-options");
       input.autocomplete = "off";
-      nameHost.replaceChildren(input);
+      input.placeholder = "Search city or timezone";
+      searchShell.appendChild(input);
+      nameHost.replaceChildren(searchShell);
+
+      if (state.editingNameTouched && normalizeQuery(state.editingNameDraft)) {
+        const results = getNameSuggestions(state.editingNameDraft);
+        const list = document.createElement("div");
+        list.className = "name-suggestion-list";
+
+        if (results.length) {
+          for (const result of results) {
+            const option = document.createElement("button");
+            option.type = "button";
+            option.className = "name-suggestion-item";
+            option.dataset.role = "name-suggestion";
+            option.dataset.id = city.id;
+            option.dataset.label = result.label;
+            option.dataset.timeZone = result.timeZone;
+
+            const copy = document.createElement("span");
+            copy.className = "name-suggestion-copy";
+
+            const label = document.createElement("span");
+            label.className = "name-suggestion-label";
+            label.textContent = result.label;
+
+            const zone = document.createElement("span");
+            zone.className = "name-suggestion-zone";
+            zone.textContent = result.timeZone;
+
+            const match = document.createElement("span");
+            match.className = "name-suggestion-match";
+            match.textContent = result.matchType;
+
+            copy.append(label, zone);
+            option.append(copy, match);
+            list.appendChild(option);
+          }
+        } else {
+          const empty = document.createElement("div");
+          empty.className = "name-suggestion-empty";
+          empty.textContent = "No matching time zones";
+          list.appendChild(empty);
+        }
+
+        editZoneEl.appendChild(list);
+      }
     } else {
       const button = document.createElement("button");
       button.className = "card-name";
@@ -457,14 +554,23 @@ function render() {
   }
   cardsEl.replaceChildren(fragment);
 
-  if (state.editingNameId) {
-    focusAndSelect(`input[data-role="name-input"][data-id="${state.editingNameId}"]`);
+  if (state.focusTarget?.type === "name" && state.editingNameId === state.focusTarget.id) {
+    focusAndSelect(
+      `input[data-role="name-input"][data-id="${state.editingNameId}"]`,
+      state.focusTarget
+    );
+    state.focusTarget = null;
   }
-  if (state.editingTimeId) {
-    focusAndSelect(`input[data-role="time-input"][data-id="${state.editingTimeId}"]`);
+  if (state.focusTarget?.type === "time" && state.editingTimeId === state.focusTarget.id) {
+    focusAndSelect(
+      `input[data-role="time-input"][data-id="${state.editingTimeId}"]`,
+      state.focusTarget
+    );
+    state.focusTarget = null;
   }
-  if (state.addMode) {
-    focusAndSelect('input[data-role="add-input"]');
+  if (state.focusTarget?.type === "add" && state.addMode) {
+    focusAndSelect('input[data-role="add-input"]', state.focusTarget);
+    state.focusTarget = null;
   }
 }
 
@@ -593,6 +699,8 @@ async function commitNameEdit(id, value) {
   const trimmed = value.trim();
   if (!trimmed) {
     state.editingNameId = null;
+    state.editingNameDraft = "";
+    state.editingNameTouched = false;
     render();
     return;
   }
@@ -606,6 +714,23 @@ async function commitNameEdit(id, value) {
   }
 
   state.editingNameId = null;
+  state.editingNameDraft = "";
+  state.editingNameTouched = false;
+  await persist();
+  render();
+}
+
+async function applyNameSuggestion(id, label, timeZone) {
+  const city = state.cities.find((item) => item.id === id);
+  if (!city) {
+    return;
+  }
+
+  city.label = label;
+  city.timeZone = timeZone;
+  state.editingNameId = null;
+  state.editingNameDraft = "";
+  state.editingNameTouched = false;
   await persist();
   render();
 }
@@ -663,7 +788,14 @@ cardsEl.addEventListener("click", async (event) => {
 
   if (role === "name-button") {
     state.editingNameId = id;
+    state.editingNameDraft = state.cities.find((item) => item.id === id)?.label || "";
+    state.editingNameTouched = false;
     state.editingTimeId = null;
+    state.focusTarget = {
+      type: "name",
+      id,
+      selectAll: true
+    };
     render();
     return;
   }
@@ -671,6 +803,13 @@ cardsEl.addEventListener("click", async (event) => {
   if (role === "time-button") {
     state.editingTimeId = id;
     state.editingNameId = null;
+    state.editingNameDraft = "";
+    state.editingNameTouched = false;
+    state.focusTarget = {
+      type: "time",
+      id,
+      selectAll: true
+    };
     render();
     return;
   }
@@ -697,9 +836,12 @@ cardsEl.addEventListener("keydown", async (event) => {
 
   if (event.key === "Escape") {
     state.editingNameId = null;
+    state.editingNameDraft = "";
+    state.editingNameTouched = false;
     state.editingTimeId = null;
     state.addMode = false;
     state.settingsOpen = false;
+    state.focusTarget = null;
     render();
     return;
   }
@@ -728,7 +870,21 @@ cardsEl.addEventListener("focusout", async (event) => {
   const role = event.target?.dataset?.role;
   const id = event.target?.dataset?.id;
   if (role === "name-input") {
-    await commitNameEdit(id, event.target.value);
+    const value = event.target.value;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(async () => {
+        const activeRole = document.activeElement?.dataset?.role;
+        const activeId = document.activeElement?.dataset?.id;
+        if (activeRole === "name-input" && activeId === id) {
+          return;
+        }
+        if (state.editingNameId !== id) {
+          return;
+        }
+        await commitNameEdit(id, value);
+      });
+    });
+    return;
   }
   if (role === "time-input") {
     await commitTimeEdit(id, event.target.value);
@@ -738,11 +894,41 @@ cardsEl.addEventListener("focusout", async (event) => {
   }
 });
 
+cardsEl.addEventListener("input", (event) => {
+  const role = event.target?.dataset?.role;
+  const id = event.target?.dataset?.id;
+
+  if (role === "name-input" && id === state.editingNameId) {
+    state.editingNameDraft = event.target.value;
+    state.editingNameTouched = true;
+    state.focusTarget = {
+      type: "name",
+      id,
+      caretStart: event.target.selectionStart ?? event.target.value.length,
+      caretEnd: event.target.selectionEnd ?? event.target.value.length
+    };
+    render();
+  }
+});
+
+cardsEl.addEventListener("mousedown", async (event) => {
+  if (event.target?.closest('[data-role="name-suggestion"]')) {
+    event.preventDefault();
+    const option = event.target.closest('[data-role="name-suggestion"]');
+    await applyNameSuggestion(
+      option.dataset.id,
+      option.dataset.label,
+      option.dataset.timeZone
+    );
+  }
+});
+
 initialize();
 
 headerAddButtonEl.addEventListener("click", () => {
   state.settingsOpen = false;
   state.addMode = !state.addMode;
+  state.focusTarget = state.addMode ? { type: "add", selectAll: false } : null;
   render();
 });
 
