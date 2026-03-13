@@ -75,6 +75,12 @@ input {
   gap: 12px;
 }
 
+.add-button-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 6px;
+}
+
 .calendar-view {
   display: grid;
 }
@@ -245,7 +251,7 @@ input {
 }
 
 .header-icon-button,
-.header-add-button {
+.floating-add-button {
   width: 32px;
   height: 32px;
   padding: 0;
@@ -265,12 +271,16 @@ input {
 }
 
 .header-icon-button:hover,
-.header-add-button:hover {
+.floating-add-button:hover {
   background: rgba(17, 19, 26, 0.05);
 }
 
 .calendar-toggle-button.is-active {
   background: rgba(17, 19, 26, 0.08);
+}
+
+.floating-add-button {
+  box-shadow: var(--card-shadow);
 }
 
 .settings-popover {
@@ -387,6 +397,47 @@ input {
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: text;
+}
+
+.card-time-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.card-time-segment,
+.card-time-period {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  font-family: "SF Mono", "IBM Plex Mono", "Menlo", monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.card-time-segment {
+  width: 28px;
+  padding: 0;
+  text-align: center;
+}
+
+.card-time-period {
+  margin-left: 4px;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+  appearance: none;
+  cursor: pointer;
+}
+
+.card-time-separator {
+  font-family: "SF Mono", "IBM Plex Mono", "Menlo", monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .card-date {

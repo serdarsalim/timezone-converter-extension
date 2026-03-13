@@ -44,6 +44,7 @@ const calendarViewEl = document.querySelector("#calendar-view");
 const datalistEl = document.querySelector("#timezone-options");
 const cardTemplate = document.querySelector("#card-template");
 const headerAddButtonEl = document.querySelector("#header-add-button");
+const addButtonWrapEl = document.querySelector(".add-button-wrap");
 const calendarToggleButtonEl = document.querySelector("#calendar-toggle-button");
 const settingsButtonEl = document.querySelector("#settings-button");
 const settingsPopoverEl = document.querySelector("#settings-popover");
@@ -62,6 +63,7 @@ const state = {
   editingNameDraft: "",
   editingNameTouched: false,
   editingTimeId: null,
+  editingTimeDraft: null,
   dragId: null,
   dragTargetId: null,
   addMode: false,
@@ -320,6 +322,72 @@ function formatTimeInputValue(totalMinutes) {
   const hours = String(Math.floor(totalMinutes / 60) % 24).padStart(2, "0");
   const minutes = String(totalMinutes % 60).padStart(2, "0");
   return `${hours}:${minutes}`;
+}
+
+function getTimePartsFromMinutes(totalMinutes) {
+  const hours24 = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+
+  if (state.preferences.timeFormat === "24h") {
+    return {
+      hour: String(hours24).padStart(2, "0"),
+      minute: String(minutes).padStart(2, "0"),
+      period: ""
+    };
+  }
+
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return {
+    hour: String(hours12).padStart(2, "0"),
+    minute: String(minutes).padStart(2, "0"),
+    period
+  };
+}
+
+function parseDisplayTimeParts(hourValue, minuteValue, periodValue) {
+  const rawHour = String(hourValue ?? "").replace(/\D/g, "");
+  const rawMinute = String(minuteValue ?? "").replace(/\D/g, "");
+  if (!rawHour || !rawMinute) {
+    return null;
+  }
+
+  let hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  if (state.preferences.timeFormat === "24h") {
+    if (hour < 0 || hour > 23) {
+      return null;
+    }
+    return hour * 60 + minute;
+  }
+
+  if (hour < 1 || hour > 12) {
+    return null;
+  }
+
+  hour %= 12;
+  if ((periodValue || "AM") === "PM") {
+    hour += 12;
+  }
+  return hour * 60 + minute;
+}
+
+function getCityEditingTimeDraft(city) {
+  if (state.editingTimeDraft?.id === city.id) {
+    return state.editingTimeDraft;
+  }
+
+  const parts = getTimePartsFromMinutes(getLiveDatePartsForCity(city).minutes);
+  return {
+    id: city.id,
+    hour: parts.hour,
+    minute: parts.minute,
+    period: parts.period
+  };
 }
 
 function parseTimeValue(value) {
@@ -706,7 +774,7 @@ function render() {
   const isCalendarView = state.activeView === "calendar";
   cardsEl.classList.toggle("hidden", isCalendarView);
   calendarViewEl.classList.toggle("hidden", !isCalendarView);
-  headerAddButtonEl.classList.toggle("hidden", isCalendarView);
+  addButtonWrapEl.classList.toggle("hidden", isCalendarView);
   calendarToggleButtonEl.classList.toggle("is-active", isCalendarView);
   settingsPopoverEl.classList.toggle("hidden", !state.settingsOpen);
   settingsPopoverEl.querySelectorAll('[data-role="time-format"]').forEach((button) => {
@@ -806,15 +874,53 @@ function render() {
     }
 
     if (state.editingTimeId === city.id) {
-      const input = document.createElement("input");
-      input.className = "inline-input time-input";
-      input.type = "text";
-      input.value = timeText;
-      input.dataset.role = "time-input";
-      input.dataset.id = city.id;
-      input.inputMode = "numeric";
-      input.autocomplete = "off";
-      timeHost.replaceChildren(input);
+      const draft = getCityEditingTimeDraft(city);
+      const editor = document.createElement("div");
+      editor.className = "card-time-editor";
+      editor.dataset.id = city.id;
+
+      const hourInput = document.createElement("input");
+      hourInput.className = "card-time-segment";
+      hourInput.type = "text";
+      hourInput.value = draft.hour;
+      hourInput.dataset.role = "time-hour";
+      hourInput.dataset.id = city.id;
+      hourInput.inputMode = "numeric";
+      hourInput.maxLength = 2;
+      hourInput.autocomplete = "off";
+
+      const separator = document.createElement("span");
+      separator.className = "card-time-separator";
+      separator.textContent = ":";
+
+      const minuteInput = document.createElement("input");
+      minuteInput.className = "card-time-segment";
+      minuteInput.type = "text";
+      minuteInput.value = draft.minute;
+      minuteInput.dataset.role = "time-minute";
+      minuteInput.dataset.id = city.id;
+      minuteInput.inputMode = "numeric";
+      minuteInput.maxLength = 2;
+      minuteInput.autocomplete = "off";
+
+      editor.append(hourInput, separator, minuteInput);
+
+      if (state.preferences.timeFormat !== "24h") {
+        const periodSelect = document.createElement("select");
+        periodSelect.className = "card-time-period";
+        periodSelect.dataset.role = "time-period";
+        periodSelect.dataset.id = city.id;
+        for (const period of ["AM", "PM"]) {
+          const option = document.createElement("option");
+          option.value = period;
+          option.textContent = period;
+          option.selected = draft.period === period;
+          periodSelect.appendChild(option);
+        }
+        editor.appendChild(periodSelect);
+      }
+
+      timeHost.replaceChildren(editor);
       if (isCompareSource(city.id)) {
         timeHost.appendChild(createResetButton(city.id));
       }
@@ -869,9 +975,9 @@ function render() {
     );
     state.focusTarget = null;
   }
-  if (state.focusTarget?.type === "time" && state.editingTimeId === state.focusTarget.id) {
+  if (state.focusTarget?.type === "time-segment" && state.editingTimeId === state.focusTarget.id) {
     focusAndSelect(
-      `input[data-role="time-input"][data-id="${state.editingTimeId}"]`,
+      `[data-role="${state.focusTarget.segment}"][data-id="${state.editingTimeId}"]`,
       state.focusTarget
     );
     state.focusTarget = null;
@@ -1079,17 +1185,9 @@ async function applyNameSuggestion(id, label, timeZone) {
   render();
 }
 
-async function commitTimeEdit(id, value) {
+async function setReferenceTimeFromCity(id, totalMinutes) {
   const city = state.cities.find((item) => item.id === id);
   if (!city) {
-    return;
-  }
-
-  const parsed = parseTimeInput(value);
-  state.editingTimeId = null;
-
-  if (parsed === null) {
-    render();
     return;
   }
 
@@ -1101,10 +1199,33 @@ async function commitTimeEdit(id, value) {
       currentParts.year,
       currentParts.month,
       currentParts.day,
-      parsed
+      totalMinutes
     )
   };
   await persist();
+}
+
+async function commitTimeEdit(id) {
+  if (state.editingTimeDraft?.id !== id) {
+    state.editingTimeId = null;
+    render();
+    return;
+  }
+
+  const parsed = parseDisplayTimeParts(
+    state.editingTimeDraft.hour,
+    state.editingTimeDraft.minute,
+    state.editingTimeDraft.period
+  );
+  state.editingTimeId = null;
+  state.editingTimeDraft = null;
+
+  if (parsed === null) {
+    render();
+    return;
+  }
+
+  await setReferenceTimeFromCity(id, parsed);
   render();
 }
 
@@ -1140,6 +1261,53 @@ async function addCitySuggestion(label, timeZone) {
   render();
 }
 
+async function syncEditingTimeDraft(id) {
+  if (state.editingTimeDraft?.id !== id) {
+    return;
+  }
+
+  const parsed = parseDisplayTimeParts(
+    state.editingTimeDraft.hour,
+    state.editingTimeDraft.minute,
+    state.editingTimeDraft.period
+  );
+  if (parsed === null) {
+    return;
+  }
+
+  await setReferenceTimeFromCity(id, parsed);
+}
+
+function adjustEditingTimeDraftSegment(id, segment, direction) {
+  if (state.editingTimeDraft?.id !== id) {
+    return;
+  }
+
+  if (segment === "time-hour") {
+    if (state.preferences.timeFormat === "24h") {
+      const nextHour = (Number(state.editingTimeDraft.hour || "0") + direction + 24) % 24;
+      state.editingTimeDraft.hour = String(nextHour).padStart(2, "0");
+      return;
+    }
+
+    let nextHour = Number(state.editingTimeDraft.hour || "12") + direction;
+    let nextPeriod = state.editingTimeDraft.period || "AM";
+    if (nextHour > 12) {
+      nextHour = 1;
+      nextPeriod = nextPeriod === "AM" ? "PM" : "AM";
+    } else if (nextHour < 1) {
+      nextHour = 12;
+      nextPeriod = nextPeriod === "AM" ? "PM" : "AM";
+    }
+    state.editingTimeDraft.hour = String(nextHour).padStart(2, "0");
+    state.editingTimeDraft.period = nextPeriod;
+    return;
+  }
+
+  const nextMinute = (Number(state.editingTimeDraft.minute || "0") + direction + 60) % 60;
+  state.editingTimeDraft.minute = String(nextMinute).padStart(2, "0");
+}
+
 async function removeCity(id) {
   const index = state.cities.findIndex((item) => item.id === id);
   if (index === -1) {
@@ -1160,6 +1328,7 @@ async function removeCity(id) {
 
   if (state.editingTimeId === id) {
     state.editingTimeId = null;
+    state.editingTimeDraft = null;
   }
 
   await persist();
@@ -1175,6 +1344,7 @@ cardsEl.addEventListener("click", async (event) => {
     state.editingNameDraft = state.cities.find((item) => item.id === id)?.label || "";
     state.editingNameTouched = false;
     state.editingTimeId = null;
+    state.editingTimeDraft = null;
     state.focusTarget = {
       type: "name",
       id,
@@ -1185,13 +1355,19 @@ cardsEl.addEventListener("click", async (event) => {
   }
 
   if (role === "time-button") {
+    const city = state.cities.find((item) => item.id === id);
+    if (!city) {
+      return;
+    }
     state.editingTimeId = id;
+    state.editingTimeDraft = getCityEditingTimeDraft(city);
     state.editingNameId = null;
     state.editingNameDraft = "";
     state.editingNameTouched = false;
     state.focusTarget = {
-      type: "time",
+      type: "time-segment",
       id,
+      segment: "time-hour",
       selectAll: true
     };
     render();
@@ -1230,6 +1406,7 @@ cardsEl.addEventListener("keydown", async (event) => {
     state.editingNameDraft = "";
     state.editingNameTouched = false;
     state.editingTimeId = null;
+    state.editingTimeDraft = null;
     state.addMode = false;
     state.addDraft = "";
     state.addTouched = false;
@@ -1248,9 +1425,9 @@ cardsEl.addEventListener("keydown", async (event) => {
     await commitNameEdit(id, event.target.value);
   }
 
-  if (role === "time-input") {
+  if (role === "time-hour" || role === "time-minute" || role === "time-period") {
     event.preventDefault();
-    await commitTimeEdit(id, event.target.value);
+    await commitTimeEdit(id);
   }
 
   if (role === "add-input") {
@@ -1279,8 +1456,24 @@ cardsEl.addEventListener("focusout", async (event) => {
     });
     return;
   }
-  if (role === "time-input") {
-    await commitTimeEdit(id, event.target.value);
+  if (role === "time-hour" || role === "time-minute" || role === "time-period") {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(async () => {
+        const activeRole = document.activeElement?.dataset?.role;
+        const activeId = document.activeElement?.dataset?.id;
+        const stillInTimeEditor = (
+          (activeRole === "time-hour" || activeRole === "time-minute" || activeRole === "time-period") &&
+          activeId === id
+        );
+        if (stillInTimeEditor) {
+          return;
+        }
+        if (state.editingTimeId !== id) {
+          return;
+        }
+        await commitTimeEdit(id);
+      });
+    });
   }
   if (role === "add-input") {
     const value = event.target.value;
@@ -1325,7 +1518,78 @@ cardsEl.addEventListener("input", (event) => {
     };
     render();
   }
+
+  if ((role === "time-hour" || role === "time-minute") && id === state.editingTimeId) {
+    const city = state.cities.find((item) => item.id === id);
+    if (!city) {
+      return;
+    }
+    const baseDraft = getCityEditingTimeDraft(city);
+    state.editingTimeDraft = {
+      ...baseDraft,
+      ...state.editingTimeDraft,
+      id,
+      [role === "time-hour" ? "hour" : "minute"]: event.target.value
+    };
+    state.focusTarget = {
+      type: "time-segment",
+      id,
+      segment: role,
+      caretStart: event.target.selectionStart ?? event.target.value.length,
+      caretEnd: event.target.selectionEnd ?? event.target.value.length
+    };
+    syncEditingTimeDraft(id).then(() => {
+      render();
+    });
+  }
 });
+
+cardsEl.addEventListener("change", (event) => {
+  const role = event.target?.dataset?.role;
+  const id = event.target?.dataset?.id;
+
+  if (role === "time-period" && id === state.editingTimeId) {
+    const city = state.cities.find((item) => item.id === id);
+    if (!city) {
+      return;
+    }
+    const baseDraft = getCityEditingTimeDraft(city);
+    state.editingTimeDraft = {
+      ...baseDraft,
+      ...state.editingTimeDraft,
+      id,
+      period: event.target.value
+    };
+    state.focusTarget = {
+      type: "time-segment",
+      id,
+      segment: "time-period"
+    };
+    syncEditingTimeDraft(id).then(() => {
+      render();
+    });
+  }
+});
+
+cardsEl.addEventListener("wheel", (event) => {
+  const role = event.target?.dataset?.role;
+  const id = event.target?.dataset?.id;
+  if (!id || (role !== "time-hour" && role !== "time-minute")) {
+    return;
+  }
+
+  event.preventDefault();
+  adjustEditingTimeDraftSegment(id, role, event.deltaY > 0 ? -1 : 1);
+  state.focusTarget = {
+    type: "time-segment",
+    id,
+    segment: role,
+    selectAll: true
+  };
+  syncEditingTimeDraft(id).then(() => {
+    render();
+  });
+}, { passive: false });
 
 cardsEl.addEventListener("mousedown", async (event) => {
   if (event.target?.closest('[data-role="remove-city"]')) {
@@ -1367,6 +1631,7 @@ calendarToggleButtonEl.addEventListener("click", () => {
   state.editingNameDraft = "";
   state.editingNameTouched = false;
   state.editingTimeId = null;
+  state.editingTimeDraft = null;
   state.focusTarget = null;
   if (state.activeView === "calendar") {
     ensureCalendarState(true);
@@ -1379,6 +1644,8 @@ headerAddButtonEl.addEventListener("click", () => {
   state.addMode = !state.addMode;
   state.addDraft = "";
   state.addTouched = false;
+  state.editingTimeId = null;
+  state.editingTimeDraft = null;
   state.focusTarget = state.addMode ? { type: "add", selectAll: false } : null;
   render();
 });
