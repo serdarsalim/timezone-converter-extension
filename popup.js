@@ -4,6 +4,8 @@ const surface = new URLSearchParams(window.location.search).get("surface") === "
   : "popup";
 document.documentElement.dataset.surface = surface;
 document.body.dataset.surface = surface;
+document.documentElement.dataset.theme = "light";
+document.body.dataset.theme = "light";
 
 const DEFAULT_CITIES = [
   { id: crypto.randomUUID(), label: "Local Time", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
@@ -90,7 +92,8 @@ const state = {
   preferences: {
     timeFormat: "12h",
     pinFirstTimezone: true,
-    openInSidePanel: false
+    openInSidePanel: false,
+    darkMode: false
   }
 };
 
@@ -100,6 +103,12 @@ function isFirstTimezonePinned() {
 
 function isPinnedCity(cityId) {
   return isFirstTimezonePinned() && state.cities[0]?.id === cityId;
+}
+
+function applyTheme() {
+  const theme = state.preferences.darkMode === true ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  document.body.dataset.theme = theme;
 }
 
 const storage = {
@@ -307,7 +316,8 @@ function normalizeStoredState(stored) {
       preferences: {
         timeFormat: "12h",
         pinFirstTimezone: true,
-        openInSidePanel: false
+        openInSidePanel: false,
+        darkMode: false
       }
     };
   }
@@ -318,7 +328,8 @@ function normalizeStoredState(stored) {
     preferences: {
       timeFormat: stored.preferences?.timeFormat === "24h" ? "24h" : "12h",
       pinFirstTimezone: stored.preferences?.pinFirstTimezone !== false,
-      openInSidePanel: stored.preferences?.openInSidePanel === true
+      openInSidePanel: stored.preferences?.openInSidePanel === true,
+      darkMode: stored.preferences?.darkMode === true
     }
   };
 }
@@ -791,6 +802,7 @@ function renderCalendarView() {
 }
 
 function render() {
+  applyTheme();
   const isCalendarView = state.activeView === "calendar";
   cardsEl.classList.toggle("hidden", isCalendarView);
   calendarViewEl.classList.toggle("hidden", !isCalendarView);
@@ -807,6 +819,9 @@ function render() {
   const openInSidePanelButton = settingsPopoverEl.querySelector('[data-role="open-in-side-panel"]');
   openInSidePanelButton?.classList.toggle("is-active", state.preferences.openInSidePanel === true);
   openInSidePanelButton?.setAttribute("aria-pressed", state.preferences.openInSidePanel === true ? "true" : "false");
+  const darkModeButton = settingsPopoverEl.querySelector('[data-role="dark-mode"]');
+  darkModeButton?.classList.toggle("is-active", state.preferences.darkMode === true);
+  darkModeButton?.setAttribute("aria-pressed", state.preferences.darkMode === true ? "true" : "false");
 
   if (isCalendarView) {
     renderCalendarView();
@@ -1787,6 +1802,14 @@ settingsPopoverEl.addEventListener("click", async (event) => {
       }
     }
 
+    render();
+    return;
+  }
+
+  if (actionButton.dataset.role === "dark-mode") {
+    state.preferences.darkMode = state.preferences.darkMode !== true;
+    state.settingsOpen = false;
+    await persist();
     render();
     return;
   }

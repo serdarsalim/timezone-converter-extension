@@ -1,6 +1,8 @@
 :root {
   color-scheme: light;
+  --bg-start: #faf9f6;
   --bg: #f5f4f1;
+  --bg-end: #efede7;
   --card: rgba(255, 255, 255, 0.78);
   --card-border: rgba(23, 27, 35, 0.08);
   --card-shadow: 0 14px 34px rgba(20, 26, 38, 0.08);
@@ -12,6 +14,70 @@
   --override-border: rgba(84, 111, 150, 0.22);
   --button: rgba(17, 19, 26, 0.05);
   --button-hover: rgba(17, 19, 26, 0.09);
+  --primary: #0a84ff;
+  --primary-text: #fff;
+  --scroll-thumb: rgba(17, 19, 26, 0.24);
+  --field-border: rgba(17, 19, 26, 0.08);
+  --field-bg: rgba(17, 19, 26, 0.04);
+  --field-bg-strong: rgba(17, 19, 26, 0.08);
+  --hover-bg: rgba(17, 19, 26, 0.05);
+  --hover-bg-strong: rgba(17, 19, 26, 0.07);
+  --hover-bg-stronger: rgba(17, 19, 26, 0.06);
+  --popover-bg: rgba(255, 255, 255, 0.95);
+  --popover-shadow: 0 10px 24px rgba(20, 26, 38, 0.12);
+  --suggestion-shadow: 0 12px 24px rgba(20, 26, 38, 0.08);
+  --toggle-bg: rgba(17, 19, 26, 0.05);
+  --toggle-active-bg: rgba(255, 255, 255, 0.96);
+  --toggle-active-shadow: 0 1px 2px rgba(17, 19, 26, 0.08);
+  --divider-color: rgba(17, 19, 26, 0.07);
+  --switch-track: rgba(17, 19, 26, 0.14);
+  --switch-thumb: #fff;
+  --switch-thumb-shadow: 0 1px 2px rgba(17, 19, 26, 0.18);
+  --drag-target: rgba(17, 19, 26, 0.24);
+  --danger: #8c4a4a;
+  --add-card-border: rgba(17, 19, 26, 0.15);
+  --add-card-bg: rgba(255, 255, 255, 0.38);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-start: #181a20;
+  --bg: #111319;
+  --bg-end: #0c0e13;
+  --card: rgba(28, 31, 39, 0.92);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
+  --text: #f2f4f8;
+  --muted: #9da4b2;
+  --line: rgba(255, 255, 255, 0.08);
+  --accent: #f2f4f8;
+  --override: rgba(36, 52, 76, 0.9);
+  --override-border: rgba(114, 152, 214, 0.28);
+  --button: rgba(255, 255, 255, 0.08);
+  --button-hover: rgba(255, 255, 255, 0.12);
+  --primary: #0a84ff;
+  --primary-text: #fff;
+  --scroll-thumb: rgba(255, 255, 255, 0.18);
+  --field-border: rgba(255, 255, 255, 0.08);
+  --field-bg: rgba(255, 255, 255, 0.06);
+  --field-bg-strong: rgba(255, 255, 255, 0.1);
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --hover-bg-strong: rgba(255, 255, 255, 0.1);
+  --hover-bg-stronger: rgba(255, 255, 255, 0.08);
+  --popover-bg: rgba(27, 30, 38, 0.98);
+  --popover-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  --suggestion-shadow: 0 14px 26px rgba(0, 0, 0, 0.35);
+  --toggle-bg: rgba(255, 255, 255, 0.08);
+  --toggle-active-bg: rgba(255, 255, 255, 0.12);
+  --toggle-active-shadow: none;
+  --divider-color: rgba(255, 255, 255, 0.08);
+  --switch-track: rgba(255, 255, 255, 0.16);
+  --switch-thumb: #fff;
+  --switch-thumb-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --drag-target: rgba(255, 255, 255, 0.18);
+  --danger: #f08b8b;
+  --add-card-border: rgba(255, 255, 255, 0.14);
+  --add-card-bg: rgba(255, 255, 255, 0.04);
 }
 
 * {
@@ -22,12 +88,12 @@ html,
 body {
   margin: 0;
   width: 420px;
-  background: radial-gradient(circle at top, #faf9f6 0%, var(--bg) 52%, #efede7 100%);
+  background: radial-gradient(circle at top, var(--bg-start) 0%, var(--bg) 52%, var(--bg-end) 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(17, 19, 26, 0.24) transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 html[data-surface="sidepanel"],
@@ -47,7 +113,7 @@ body::-webkit-scrollbar-track {
 
 body::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(17, 19, 26, 0.24);
+  background: var(--scroll-thumb);
 }
 
 button,
@@ -86,8 +152,8 @@ body[data-surface="sidepanel"] .app {
 
 .header-reset-button {
   pointer-events: auto;
-  background: #0a84ff;
-  color: #fff;
+  background: var(--primary);
+  color: var(--primary-text);
   box-shadow: var(--card-shadow);
 }
 
@@ -154,9 +220,9 @@ body[data-surface="sidepanel"] .calendar-grid {
   width: 100%;
   min-width: 0;
   padding: 11px 13px;
-  border: 1px solid rgba(17, 19, 26, 0.08);
+  border: 1px solid var(--field-border);
   border-radius: 14px;
-  background: rgba(17, 19, 26, 0.04);
+  background: var(--field-bg);
   color: var(--text);
   outline: none;
 }
@@ -167,9 +233,9 @@ body[data-surface="sidepanel"] .calendar-grid {
   gap: 6px;
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid rgba(17, 19, 26, 0.08);
+  border: 1px solid var(--field-border);
   border-radius: 14px;
-  background: rgba(17, 19, 26, 0.04);
+  background: var(--field-bg);
 }
 
 .calendar-segment-input,
@@ -213,7 +279,7 @@ body[data-surface="sidepanel"] .calendar-grid {
 
 .duration-option {
   padding: 10px 0;
-  border: 1px solid rgba(17, 19, 26, 0.08);
+  border: 1px solid var(--field-border);
   border-radius: 14px;
   background: transparent;
   color: var(--text);
@@ -222,7 +288,7 @@ body[data-surface="sidepanel"] .calendar-grid {
 }
 
 .duration-option.is-active {
-  background: rgba(17, 19, 26, 0.08);
+  background: var(--field-bg-strong);
 }
 
 .calendar-preview {
@@ -241,7 +307,7 @@ body[data-surface="sidepanel"] .calendar-grid {
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(17, 19, 26, 0.05);
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 
@@ -281,8 +347,8 @@ body[data-surface="sidepanel"] .calendar-grid {
   padding: 11px 18px;
   border: 0;
   border-radius: 999px;
-  background: #0a84ff;
-  color: #fff;
+  background: var(--primary);
+  color: var(--primary-text);
   font-weight: 600;
   cursor: pointer;
   box-shadow: var(--card-shadow);
@@ -310,11 +376,11 @@ body[data-surface="sidepanel"] .calendar-grid {
 
 .header-icon-button:hover,
 .floating-add-button:hover {
-  background: rgba(17, 19, 26, 0.05);
+  background: var(--hover-bg);
 }
 
 .calendar-toggle-button.is-active {
-  background: rgba(17, 19, 26, 0.08);
+  background: var(--field-bg-strong);
 }
 
 .floating-add-button {
@@ -331,8 +397,8 @@ body[data-surface="sidepanel"] .calendar-grid {
   padding: 8px;
   border: 1px solid var(--card-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 10px 24px rgba(20, 26, 38, 0.12);
+  background: var(--popover-bg);
+  box-shadow: var(--popover-shadow);
   backdrop-filter: blur(16px);
   z-index: 5;
 }
@@ -352,7 +418,7 @@ body[data-surface="sidepanel"] .settings-popover {
 .settings-divider {
   height: 1px;
   margin: 4px 2px;
-  background: rgba(17, 19, 26, 0.07);
+  background: var(--divider-color);
 }
 
 .settings-toggle {
@@ -361,7 +427,7 @@ body[data-surface="sidepanel"] .settings-popover {
   gap: 4px;
   padding: 2px;
   border-radius: 12px;
-  background: rgba(17, 19, 26, 0.05);
+  background: var(--toggle-bg);
 }
 
 .settings-toggle-option {
@@ -377,8 +443,8 @@ body[data-surface="sidepanel"] .settings-popover {
 }
 
 .settings-toggle-option.is-active {
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 1px 2px rgba(17, 19, 26, 0.08);
+  background: var(--toggle-active-bg);
+  box-shadow: var(--toggle-active-shadow);
 }
 
 .settings-option {
@@ -394,7 +460,7 @@ body[data-surface="sidepanel"] .settings-popover {
 
 .settings-option:hover,
 .settings-option.is-active {
-  background: rgba(17, 19, 26, 0.07);
+  background: var(--hover-bg-strong);
 }
 
 .settings-switch-row {
@@ -417,7 +483,7 @@ body[data-surface="sidepanel"] .settings-popover {
   width: 34px;
   height: 20px;
   border-radius: 999px;
-  background: rgba(17, 19, 26, 0.14);
+  background: var(--switch-track);
 }
 
 .settings-switch-knob {
@@ -427,8 +493,8 @@ body[data-surface="sidepanel"] .settings-popover {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(17, 19, 26, 0.18);
+  background: var(--switch-thumb);
+  box-shadow: var(--switch-thumb-shadow);
 }
 
 .settings-switch-row.is-active {
@@ -436,7 +502,7 @@ body[data-surface="sidepanel"] .settings-popover {
 }
 
 .settings-switch-row.is-active .settings-switch {
-  background: #0a84ff;
+  background: var(--primary);
 }
 
 .settings-switch-row.is-active .settings-switch-knob {
@@ -470,7 +536,7 @@ body[data-surface="sidepanel"] .settings-popover {
 }
 
 .city-card.is-drag-target {
-  border-color: rgba(17, 19, 26, 0.24);
+  border-color: var(--drag-target);
 }
 
 .card-top,
@@ -671,9 +737,9 @@ body[data-surface="sidepanel"] .card-time-separator {
   align-items: center;
   min-height: 44px;
   padding: 0 14px;
-  border: 1px solid rgba(17, 19, 26, 0.08);
+  border: 1px solid var(--field-border);
   border-radius: 16px;
-  background: rgba(17, 19, 26, 0.04);
+  background: var(--field-bg);
 }
 
 .name-search-shell::before {
@@ -696,10 +762,10 @@ body[data-surface="sidepanel"] .card-time-separator {
   display: grid;
   gap: 4px;
   padding: 6px;
-  border: 1px solid rgba(17, 19, 26, 0.08);
+  border: 1px solid var(--field-border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 24px rgba(20, 26, 38, 0.08);
+  background: var(--popover-bg);
+  box-shadow: var(--suggestion-shadow);
   backdrop-filter: blur(16px);
 }
 
@@ -720,7 +786,7 @@ body[data-surface="sidepanel"] .card-time-separator {
 
 .name-suggestion-item:hover,
 .name-suggestion-item:focus-visible {
-  background: rgba(17, 19, 26, 0.06);
+  background: var(--hover-bg-stronger);
   outline: none;
 }
 
@@ -774,7 +840,7 @@ body[data-surface="sidepanel"] .card-time-separator {
   padding: 0;
   border: 0;
   background: transparent;
-  color: #8c4a4a;
+  color: var(--danger);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -788,8 +854,8 @@ body[data-surface="sidepanel"] .card-time-separator {
 .add-button {
   width: 100%;
   padding: 16px 18px;
-  border: 1px dashed rgba(17, 19, 26, 0.15);
-  background: rgba(255, 255, 255, 0.38);
+  border: 1px dashed var(--add-card-border);
+  background: var(--add-card-bg);
   color: var(--text);
   text-align: left;
   cursor: pointer;
