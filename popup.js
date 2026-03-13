@@ -40,11 +40,20 @@ const POPULAR_ZONES = [
 ];
 
 const cardsEl = document.querySelector("#cards");
+const calendarViewEl = document.querySelector("#calendar-view");
+const viewToggleEl = document.querySelector("#view-toggle");
 const datalistEl = document.querySelector("#timezone-options");
 const cardTemplate = document.querySelector("#card-template");
 const headerAddButtonEl = document.querySelector("#header-add-button");
 const settingsButtonEl = document.querySelector("#settings-button");
 const settingsPopoverEl = document.querySelector("#settings-popover");
+const calendarDateEl = document.querySelector("#calendar-date");
+const calendarTimeEl = document.querySelector("#calendar-time");
+const calendarTitleEl = document.querySelector("#calendar-title");
+const calendarCustomDurationEl = document.querySelector("#calendar-custom-duration");
+const calendarPreviewListEl = document.querySelector("#calendar-preview-list");
+const calendarSubmitEl = document.querySelector("#calendar-submit");
+const durationOptionsEl = document.querySelector("#duration-options");
 
 const state = {
   cities: [],
@@ -57,9 +66,18 @@ const state = {
   addMode: false,
   addDraft: "",
   addTouched: false,
+  activeView: "timezones",
   compareState: null,
   settingsOpen: false,
   focusTarget: null,
+  calendar: {
+    date: "",
+    time: "",
+    title: "Meeting from Times",
+    durationMinutes: 30,
+    customDuration: "",
+    initializedForKey: ""
+  },
   preferences: {
     timeFormat: "12h"
   }
@@ -286,6 +304,152 @@ function getLiveDatePartsForCity(city) {
   return formatParts(city.timeZone, getReferenceMs());
 }
 
+function getBaseCalendarCity() {
+  const compareSourceId = getCompareSourceId();
+  return state.cities.find((city) => city.id === compareSourceId) || state.cities[0] || null;
+}
+
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatTimeInputValue(totalMinutes) {
+  const hours = String(Math.floor(totalMinutes / 60) % 24).padStart(2, "0");
+  const minutes = String(totalMinutes % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function parseTimeValue(value) {
+  const match = value.match(/^(\d{2}):(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function getOffsetText(timeZone, referenceMs) {
+  const offsetMinutes = Math.round(getTimeZoneOffsetMinutes(timeZone, new Date(referenceMs)));
+  if (offsetMinutes === 0) {
+    return "GMT";
+  }
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absolute = Math.abs(offsetMinutes);
+  const hours = Math.floor(absolute / 60);
+  const minutes = absolute % 60;
+  if (minutes === 0) {
+    return `GMT${sign}${hours}`;
+  }
+  return `GMT${sign}${hours}:${String(minutes).padStart(2, "0")}`;
+}
+
+function formatCalendarLine(city, referenceMs) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: city.timeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: state.preferences.timeFormat !== "24h"
+  });
+  return `${formatter.format(new Date(referenceMs))} ${getOffsetText(city.timeZone, referenceMs)}`;
+}
+
+function ensureCalendarState(force = false) {
+  const baseCity = getBaseCalendarCity();
+  if (!baseCity) {
+    return;
+  }
+
+  const referenceMs = getReferenceMs() ?? Date.now();
+  const current = formatParts(baseCity.timeZone, referenceMs);
+  const key = `${baseCity.id}:${current.year}-${current.month}-${current.day}:${current.minutes}`;
+  if (!force && state.calendar.initializedForKey === key) {
+    return;
+  }
+
+  const baseDate = new Date(Date.UTC(current.year, current.month - 1, current.day, 12, 0, 0));
+  state.calendar.date = formatDateInputValue(baseDate);
+  state.calendar.time = formatTimeInputValue(current.minutes);
+  state.calendar.title = state.calendar.title || "Meeting from Times";
+  state.calendar.durationMinutes = state.calendar.durationMinutes || 30;
+  state.calendar.customDuration = "";
+  state.calendar.initializedForKey = key;
+}
+
+function getCalendarDurationMinutes() {
+  const custom = Number.parseInt(state.calendar.customDuration, 10);
+  if (Number.isFinite(custom) && custom > 0) {
+    return custom;
+  }
+  return state.calendar.durationMinutes || 30;
+}
+
+function getCalendarReferenceContext() {
+  const baseCity = getBaseCalendarCity();
+  if (!baseCity || !state.calendar.date || !state.calendar.time) {
+    return null;
+  }
+
+  const [year, month, day] = state.calendar.date.split("-").map(Number);
+  const totalMinutes = parseTimeValue(state.calendar.time);
+  if (!year || !month || !day || totalMinutes === null) {
+    return null;
+  }
+
+  const referenceMs = zonedLocalToUtcMs(baseCity.timeZone, year, month, day, totalMinutes);
+  const durationMinutes = getCalendarDurationMinutes();
+
+  return {
+    baseCity,
+    referenceMs,
+    endReferenceMs: referenceMs + durationMinutes * 60 * 1000,
+    durationMinutes
+  };
+}
+
+function getCalendarEventUrl() {
+  const context = getCalendarReferenceContext();
+  if (!context) {
+    return null;
+  }
+
+  const { baseCity, referenceMs, endReferenceMs } = context;
+  const start = formatParts(baseCity.timeZone, referenceMs);
+  const end = formatParts(baseCity.timeZone, endReferenceMs);
+  const formatGoogleDate = (parts) => {
+    const month = String(parts.month).padStart(2, "0");
+    const day = String(parts.day).padStart(2, "0");
+    const hours = String(Math.floor(parts.minutes / 60) % 24).padStart(2, "0");
+    const minutes = String(parts.minutes % 60).padStart(2, "0");
+    return `${parts.year}${month}${day}T${hours}${minutes}00`;
+  };
+
+  const detailsLines = [
+    "",
+    "---------------------------------------------",
+    "Time across timezones:",
+    "",
+    ...state.cities.map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`),
+    "",
+    "Created with Times",
+    "---------------------------------------------"
+  ];
+
+  const params = new URLSearchParams({
+    text: state.calendar.title.trim() || "Meeting from Times",
+    dates: `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
+    details: detailsLines.join("\n"),
+    ctz: baseCity.timeZone
+  });
+
+  return `https://calendar.google.com/calendar/u/0/r/eventedit?${params.toString()}`;
+}
+
 function to24Hour(hourValue, minuteValue, dayPeriod) {
   let hour = Number(hourValue) % 12;
   if (dayPeriod?.toUpperCase() === "PM") {
@@ -411,18 +575,72 @@ async function initialize() {
   state.preferences = normalized.preferences;
   render();
   window.setInterval(() => {
-    if (state.editingNameId || state.editingTimeId || state.addMode || state.dragId) {
+    if (state.activeView === "calendar" || state.editingNameId || state.editingTimeId || state.addMode || state.dragId) {
       return;
     }
     render();
   }, 1000);
 }
 
+function renderCalendarView() {
+  ensureCalendarState();
+
+  calendarDateEl.value = state.calendar.date;
+  calendarTimeEl.value = state.calendar.time;
+  calendarTitleEl.value = state.calendar.title;
+  calendarCustomDurationEl.value = state.calendar.customDuration;
+
+  durationOptionsEl.querySelectorAll('[data-role="duration-option"]').forEach((button) => {
+    const isCustom = Number.parseInt(state.calendar.customDuration, 10) > 0;
+    const isActive = !isCustom && Number(button.dataset.minutes) === state.calendar.durationMinutes;
+    button.classList.toggle("is-active", isActive);
+  });
+
+  const context = getCalendarReferenceContext();
+  const fragment = document.createDocumentFragment();
+  if (context) {
+    for (const city of state.cities) {
+      const row = document.createElement("div");
+      row.className = "calendar-preview-row";
+
+      const cityLabel = document.createElement("span");
+      cityLabel.className = "calendar-preview-city";
+      cityLabel.textContent = city.label;
+
+      const timeLabel = document.createElement("span");
+      timeLabel.className = "calendar-preview-time";
+      timeLabel.textContent = formatCalendarLine(city, context.referenceMs);
+
+      row.append(cityLabel, timeLabel);
+      fragment.appendChild(row);
+    }
+  } else {
+    const empty = document.createElement("div");
+    empty.className = "name-suggestion-empty";
+    empty.textContent = "Pick a date and time to preview the event.";
+    fragment.appendChild(empty);
+  }
+  calendarPreviewListEl.replaceChildren(fragment);
+}
+
 function render() {
+  const isCalendarView = state.activeView === "calendar";
+  cardsEl.classList.toggle("hidden", isCalendarView);
+  calendarViewEl.classList.toggle("hidden", !isCalendarView);
+  headerAddButtonEl.classList.toggle("hidden", isCalendarView);
+  viewToggleEl.querySelectorAll('[data-role="view-toggle"]').forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.view === state.activeView);
+  });
   settingsPopoverEl.classList.toggle("hidden", !state.settingsOpen);
   settingsPopoverEl.querySelectorAll('[data-role="time-format"]').forEach((button) => {
     button.classList.toggle("is-active", button.dataset.format === state.preferences.timeFormat);
   });
+
+  if (isCalendarView) {
+    renderCalendarView();
+    cardsEl.replaceChildren();
+    return;
+  }
 
   const fragment = document.createDocumentFragment();
 
@@ -1062,6 +1280,27 @@ cardsEl.addEventListener("mousedown", async (event) => {
 
 initialize();
 
+viewToggleEl.addEventListener("click", (event) => {
+  if (event.target?.dataset?.role !== "view-toggle") {
+    return;
+  }
+
+  state.activeView = event.target.dataset.view === "calendar" ? "calendar" : "timezones";
+  state.settingsOpen = false;
+  state.addMode = false;
+  state.addDraft = "";
+  state.addTouched = false;
+  state.editingNameId = null;
+  state.editingNameDraft = "";
+  state.editingNameTouched = false;
+  state.editingTimeId = null;
+  state.focusTarget = null;
+  if (state.activeView === "calendar") {
+    ensureCalendarState(true);
+  }
+  render();
+});
+
 headerAddButtonEl.addEventListener("click", () => {
   state.settingsOpen = false;
   state.addMode = !state.addMode;
@@ -1069,6 +1308,46 @@ headerAddButtonEl.addEventListener("click", () => {
   state.addTouched = false;
   state.focusTarget = state.addMode ? { type: "add", selectAll: false } : null;
   render();
+});
+
+calendarDateEl.addEventListener("input", () => {
+  state.calendar.date = calendarDateEl.value;
+  renderCalendarView();
+});
+
+calendarTimeEl.addEventListener("input", () => {
+  state.calendar.time = calendarTimeEl.value;
+  renderCalendarView();
+});
+
+calendarTitleEl.addEventListener("input", () => {
+  state.calendar.title = calendarTitleEl.value;
+});
+
+calendarCustomDurationEl.addEventListener("input", () => {
+  state.calendar.customDuration = calendarCustomDurationEl.value;
+  renderCalendarView();
+});
+
+durationOptionsEl.addEventListener("click", (event) => {
+  if (event.target?.dataset?.role !== "duration-option") {
+    return;
+  }
+  state.calendar.durationMinutes = Number(event.target.dataset.minutes) || 30;
+  state.calendar.customDuration = "";
+  renderCalendarView();
+});
+
+calendarSubmitEl.addEventListener("click", () => {
+  const url = getCalendarEventUrl();
+  if (!url) {
+    return;
+  }
+  if (globalThis.chrome?.tabs?.create) {
+    chrome.tabs.create({ url });
+    return;
+  }
+  window.open(url, "_blank");
 });
 
 settingsButtonEl.addEventListener("click", (event) => {

@@ -9,16 +9,62 @@
   <body>
     <main class="app">
       <header class="app-header">
-        <div class="header-actions">
-          <button class="header-icon-button" id="settings-button" type="button" aria-label="Time format settings">⚙</button>
-          <div class="settings-popover hidden" id="settings-popover" aria-label="Time format">
-            <button class="settings-option" data-role="time-format" data-format="12h" type="button">12h</button>
-            <button class="settings-option" data-role="time-format" data-format="24h" type="button">24h</button>
-          </div>
+        <div class="view-toggle" id="view-toggle" aria-label="Popup view">
+          <button class="view-toggle-button is-active" data-role="view-toggle" data-view="timezones" type="button">Timezones</button>
+          <button class="view-toggle-button" data-role="view-toggle" data-view="calendar" type="button">Calendar</button>
         </div>
-        <button class="header-add-button" id="header-add-button" type="button" aria-label="Add city">+</button>
+        <div class="header-group">
+          <div class="header-actions">
+            <button class="header-icon-button" id="settings-button" type="button" aria-label="Time format settings">⚙</button>
+            <div class="settings-popover hidden" id="settings-popover" aria-label="Time format">
+              <button class="settings-option" data-role="time-format" data-format="12h" type="button">12h</button>
+              <button class="settings-option" data-role="time-format" data-format="24h" type="button">24h</button>
+            </div>
+          </div>
+          <button class="header-add-button" id="header-add-button" type="button" aria-label="Add city">+</button>
+        </div>
       </header>
       <section class="cards" id="cards"></section>
+      <section class="calendar-view hidden" id="calendar-view">
+        <article class="calendar-card">
+          <div class="calendar-grid">
+            <label class="calendar-field">
+              <span class="calendar-label">Date</span>
+              <input class="calendar-input" id="calendar-date" type="date">
+            </label>
+            <label class="calendar-field">
+              <span class="calendar-label">Time</span>
+              <input class="calendar-input" id="calendar-time" type="time">
+            </label>
+          </div>
+          <label class="calendar-field">
+            <span class="calendar-label">Event name</span>
+            <input class="calendar-input" id="calendar-title" type="text" placeholder="Meeting from Times">
+          </label>
+          <div class="calendar-field">
+            <span class="calendar-label">Duration</span>
+            <div class="duration-options" id="duration-options">
+              <button class="duration-option" data-role="duration-option" data-minutes="15" type="button">15m</button>
+              <button class="duration-option is-active" data-role="duration-option" data-minutes="30" type="button">30m</button>
+              <button class="duration-option" data-role="duration-option" data-minutes="45" type="button">45m</button>
+              <button class="duration-option" data-role="duration-option" data-minutes="60" type="button">1h</button>
+            </div>
+            <div class="calendar-grid">
+              <label class="calendar-field">
+                <span class="calendar-label">Custom minutes</span>
+                <input class="calendar-input" id="calendar-custom-duration" type="number" min="1" step="1" placeholder="Optional">
+              </label>
+            </div>
+          </div>
+          <div class="calendar-preview">
+            <p class="calendar-label">Time across cities</p>
+            <div class="calendar-preview-list" id="calendar-preview-list"></div>
+          </div>
+          <div class="calendar-actions">
+            <button class="calendar-submit" id="calendar-submit" type="button">Add</button>
+          </div>
+        </article>
+      </section>
       <template id="card-template">
         <article class="city-card" draggable="true">
           <div class="card-top">
