@@ -116,8 +116,8 @@ input {
 
 .city-card {
   display: grid;
-  gap: 16px;
-  padding: 18px 18px 16px;
+  gap: 8px;
+  padding: 16px 18px 14px;
   border: 1px solid var(--card-border);
   border-radius: 22px;
   background: var(--card);
@@ -145,7 +145,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
 }
 
 .card-title-block,
@@ -201,6 +201,7 @@ input {
 .card-date {
   margin: 0;
   font-size: 14px;
+  line-height: 1.1;
   color: var(--muted);
 }
 
@@ -208,7 +209,7 @@ input {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 18px;
+  min-height: 16px;
 }
 
 .meta-pill,
