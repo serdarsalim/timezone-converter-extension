@@ -441,6 +441,7 @@ function render() {
 
     const { dateText, timeText, minutes } = getLiveDatePartsForCity(city);
     dateEl.textContent = dateText;
+    metaEl.classList.toggle("is-editing", state.editingNameId === city.id);
 
     if (state.editingNameId === city.id) {
       const searchShell = document.createElement("div");
@@ -535,12 +536,22 @@ function render() {
       }
     }
 
-    const status = getStatus(minutes);
-    if (status) {
-      const pill = document.createElement("span");
-      pill.className = `meta-pill is-${status}`;
-      pill.title = status === "sun" ? "Daylight" : "Night";
-      metaEl.appendChild(pill);
+    if (state.editingNameId === city.id) {
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-city-button";
+      removeButton.textContent = "Remove city";
+      removeButton.dataset.role = "remove-city";
+      removeButton.dataset.id = city.id;
+      metaEl.appendChild(removeButton);
+    } else {
+      const status = getStatus(minutes);
+      if (status) {
+        const pill = document.createElement("span");
+        pill.className = `meta-pill is-${status}`;
+        pill.title = status === "sun" ? "Daylight" : "Night";
+        metaEl.appendChild(pill);
+      }
     }
 
     node.addEventListener("dragstart", handleDragStart);
@@ -834,6 +845,32 @@ async function addCitySuggestion(label, timeZone) {
   render();
 }
 
+async function removeCity(id) {
+  const index = state.cities.findIndex((item) => item.id === id);
+  if (index === -1) {
+    return;
+  }
+
+  state.cities.splice(index, 1);
+
+  if (state.compareState?.sourceId === id) {
+    state.compareState = null;
+  }
+
+  if (state.editingNameId === id) {
+    state.editingNameId = null;
+    state.editingNameDraft = "";
+    state.editingNameTouched = false;
+  }
+
+  if (state.editingTimeId === id) {
+    state.editingTimeId = null;
+  }
+
+  await persist();
+  render();
+}
+
 cardsEl.addEventListener("click", async (event) => {
   const role = event.target?.dataset?.role;
   const id = event.target?.dataset?.id;
@@ -873,6 +910,11 @@ cardsEl.addEventListener("click", async (event) => {
     state.compareState = null;
     await persist();
     render();
+    return;
+  }
+
+  if (role === "remove-city") {
+    await removeCity(id);
     return;
   }
 
@@ -991,6 +1033,13 @@ cardsEl.addEventListener("input", (event) => {
 });
 
 cardsEl.addEventListener("mousedown", async (event) => {
+  if (event.target?.closest('[data-role="remove-city"]')) {
+    event.preventDefault();
+    const button = event.target.closest('[data-role="remove-city"]');
+    await removeCity(button.dataset.id);
+    return;
+  }
+
   if (event.target?.closest('[data-role="name-suggestion"]')) {
     event.preventDefault();
     const option = event.target.closest('[data-role="name-suggestion"]');

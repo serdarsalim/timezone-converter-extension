@@ -212,6 +212,10 @@ input {
   min-height: 16px;
 }
 
+.card-meta.is-editing {
+  min-height: 18px;
+}
+
 .meta-pill,
 .reset-button,
 .add-button {
@@ -351,6 +355,16 @@ input {
   padding: 7px 12px;
   background: var(--button);
   color: var(--text);
+  cursor: pointer;
+}
+
+.remove-city-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8c4a4a;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
 }
 
