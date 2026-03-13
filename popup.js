@@ -46,6 +46,7 @@ const cardTemplate = document.querySelector("#card-template");
 const headerAddButtonEl = document.querySelector("#header-add-button");
 const addButtonWrapEl = document.querySelector(".add-button-wrap");
 const calendarToggleButtonEl = document.querySelector("#calendar-toggle-button");
+const headerResetButtonEl = document.querySelector("#header-reset-button");
 const settingsButtonEl = document.querySelector("#settings-button");
 const settingsPopoverEl = document.querySelector("#settings-popover");
 const calendarDateEl = document.querySelector("#calendar-date");
@@ -81,9 +82,18 @@ const state = {
     initializedForKey: ""
   },
   preferences: {
-    timeFormat: "12h"
+    timeFormat: "12h",
+    pinFirstTimezone: true
   }
 };
+
+function isFirstTimezonePinned() {
+  return state.preferences.pinFirstTimezone !== false;
+}
+
+function isPinnedCity(cityId) {
+  return isFirstTimezonePinned() && state.cities[0]?.id === cityId;
+}
 
 const storage = {
   async get() {
@@ -288,7 +298,8 @@ function normalizeStoredState(stored) {
       cities: DEFAULT_CITIES,
       compareState: null,
       preferences: {
-        timeFormat: "12h"
+        timeFormat: "12h",
+        pinFirstTimezone: true
       }
     };
   }
@@ -297,7 +308,8 @@ function normalizeStoredState(stored) {
     cities: sanitizeStoredCities(stored.cities),
     compareState: stored.compareState ?? null,
     preferences: {
-      timeFormat: stored.preferences?.timeFormat === "24h" ? "24h" : "12h"
+      timeFormat: stored.preferences?.timeFormat === "24h" ? "24h" : "12h",
+      pinFirstTimezone: stored.preferences?.pinFirstTimezone !== false
     }
   };
 }
@@ -776,10 +788,14 @@ function render() {
   calendarViewEl.classList.toggle("hidden", !isCalendarView);
   addButtonWrapEl.classList.toggle("hidden", isCalendarView);
   calendarToggleButtonEl.classList.toggle("is-active", isCalendarView);
+  headerResetButtonEl.classList.toggle("hidden", !state.compareState);
   settingsPopoverEl.classList.toggle("hidden", !state.settingsOpen);
   settingsPopoverEl.querySelectorAll('[data-role="time-format"]').forEach((button) => {
     button.classList.toggle("is-active", button.dataset.format === state.preferences.timeFormat);
   });
+  const pinFirstTimezoneButton = settingsPopoverEl.querySelector('[data-role="pin-first-timezone"]');
+  pinFirstTimezoneButton?.classList.toggle("is-active", isFirstTimezonePinned());
+  pinFirstTimezoneButton?.setAttribute("aria-pressed", isFirstTimezonePinned() ? "true" : "false");
 
   if (isCalendarView) {
     renderCalendarView();
@@ -792,7 +808,9 @@ function render() {
   for (const city of state.cities) {
     const node = cardTemplate.content.firstElementChild.cloneNode(true);
     node.dataset.id = city.id;
+    node.draggable = !isPinnedCity(city.id);
     node.classList.toggle("is-overridden", isCompareSource(city.id));
+    node.classList.toggle("is-pinned", isPinnedCity(city.id));
     node.classList.toggle("is-dragging", state.dragId === city.id);
     node.classList.toggle("is-drag-target", state.dragTargetId === city.id);
 
@@ -867,9 +885,19 @@ function render() {
       const button = document.createElement("button");
       button.className = "card-name";
       button.type = "button";
-      button.textContent = city.label;
       button.dataset.role = "name-button";
       button.dataset.id = city.id;
+      const label = document.createElement("span");
+      label.className = "card-title-label";
+      label.textContent = city.label;
+      button.appendChild(label);
+      if (isPinnedCity(city.id)) {
+        const pin = document.createElement("span");
+        pin.className = "card-pin";
+        pin.textContent = "📌";
+        pin.ariaHidden = "true";
+        button.appendChild(pin);
+      }
       nameHost.replaceChildren(button);
     }
 
@@ -921,9 +949,6 @@ function render() {
       }
 
       timeHost.replaceChildren(editor);
-      if (isCompareSource(city.id)) {
-        timeHost.appendChild(createResetButton(city.id));
-      }
     } else {
       const button = document.createElement("button");
       button.className = "card-time";
@@ -932,9 +957,6 @@ function render() {
       button.dataset.role = "time-button";
       button.dataset.id = city.id;
       timeHost.replaceChildren(button);
-      if (isCompareSource(city.id)) {
-        timeHost.appendChild(createResetButton(city.id));
-      }
     }
 
     if (state.editingNameId === city.id) {
@@ -986,16 +1008,6 @@ function render() {
     focusAndSelect('input[data-role="add-input"]', state.focusTarget);
     state.focusTarget = null;
   }
-}
-
-function createResetButton(id) {
-  const button = document.createElement("button");
-  button.className = "reset-button";
-  button.type = "button";
-  button.textContent = "Reset";
-  button.dataset.role = "reset-button";
-  button.dataset.id = id;
-  return button;
 }
 
 function renderAddCard() {
@@ -1075,6 +1087,10 @@ function renderAddCard() {
 
 function handleDragStart(event) {
   const card = event.currentTarget;
+  if (isPinnedCity(card.dataset.id)) {
+    event.preventDefault();
+    return;
+  }
   const role = event.target?.dataset?.role;
   if (role?.includes("button") || role?.includes("input")) {
     event.preventDefault();
@@ -1088,8 +1104,11 @@ function handleDragStart(event) {
 }
 
 function handleDragOver(event) {
-  event.preventDefault();
   const targetId = event.currentTarget.dataset.id;
+  if (isFirstTimezonePinned() && state.cities[0]?.id === targetId) {
+    return;
+  }
+  event.preventDefault();
   if (!state.dragId || targetId === state.dragId || state.dragTargetId === targetId) {
     return;
   }
@@ -1101,8 +1120,14 @@ function handleDragOver(event) {
 }
 
 async function handleDrop(event) {
-  event.preventDefault();
   const targetId = event.currentTarget.dataset.id;
+  if (isFirstTimezonePinned() && state.cities[0]?.id === targetId) {
+    resetDragState();
+    clearDragClasses();
+    render();
+    return;
+  }
+  event.preventDefault();
   if (!state.dragId || state.dragId === targetId) {
     resetDragState();
     clearDragClasses();
@@ -1370,16 +1395,6 @@ cardsEl.addEventListener("click", async (event) => {
       segment: "time-hour",
       selectAll: true
     };
-    render();
-    return;
-  }
-
-  if (role === "reset-button") {
-    if (!isCompareSource(id)) {
-      return;
-    }
-    state.compareState = null;
-    await persist();
     render();
     return;
   }
@@ -1708,6 +1723,17 @@ calendarSubmitEl.addEventListener("click", () => {
   window.open(url, "_blank");
 });
 
+headerResetButtonEl.addEventListener("click", async () => {
+  if (!state.compareState) {
+    return;
+  }
+  state.compareState = null;
+  state.editingTimeId = null;
+  state.editingTimeDraft = null;
+  await persist();
+  render();
+});
+
 settingsButtonEl.addEventListener("click", (event) => {
   event.stopPropagation();
   state.addMode = false;
@@ -1716,6 +1742,14 @@ settingsButtonEl.addEventListener("click", (event) => {
 });
 
 settingsPopoverEl.addEventListener("click", async (event) => {
+  if (event.target?.dataset?.role === "pin-first-timezone") {
+    state.preferences.pinFirstTimezone = !isFirstTimezonePinned();
+    state.settingsOpen = false;
+    await persist();
+    render();
+    return;
+  }
+
   if (event.target?.dataset?.role !== "time-format") {
     return;
   }

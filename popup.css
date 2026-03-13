@@ -53,11 +53,28 @@ input {
 }
 
 .app-header {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
   margin-bottom: 14px;
+}
+
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.header-reset-button {
+  pointer-events: auto;
+  background: #0a84ff;
+  color: #fff;
+  box-shadow: var(--card-shadow);
 }
 
 .header-group {
@@ -83,6 +100,7 @@ input {
 
 .calendar-view {
   display: grid;
+  gap: 12px;
 }
 
 .calendar-card {
@@ -235,19 +253,20 @@ input {
   text-align: right;
 }
 
-.calendar-actions {
+.calendar-submit-wrap {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .calendar-submit {
-  padding: 10px 18px;
+  padding: 11px 18px;
   border: 0;
   border-radius: 999px;
-  background: rgba(17, 19, 26, 0.9);
+  background: #0a84ff;
   color: #fff;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: var(--card-shadow);
 }
 
 .header-icon-button,
@@ -289,14 +308,53 @@ input {
   right: 0;
   display: grid;
   gap: 4px;
-  min-width: 74px;
-  padding: 6px;
+  min-width: 192px;
+  padding: 8px;
   border: 1px solid var(--card-border);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 10px 24px rgba(20, 26, 38, 0.12);
   backdrop-filter: blur(16px);
   z-index: 5;
+}
+
+.settings-label {
+  margin: 2px 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.settings-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: rgba(17, 19, 26, 0.07);
+}
+
+.settings-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 2px;
+  border-radius: 12px;
+  background: rgba(17, 19, 26, 0.05);
+}
+
+.settings-toggle-option {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.settings-toggle-option.is-active {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 2px rgba(17, 19, 26, 0.08);
 }
 
 .settings-option {
@@ -315,6 +373,52 @@ input {
   background: rgba(17, 19, 26, 0.07);
 }
 
+.settings-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.settings-switch-label {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(17, 19, 26, 0.14);
+}
+
+.settings-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(17, 19, 26, 0.18);
+}
+
+.settings-switch-row.is-active {
+  background: transparent;
+}
+
+.settings-switch-row.is-active .settings-switch {
+  background: #0a84ff;
+}
+
+.settings-switch-row.is-active .settings-switch-knob {
+  left: 16px;
+}
+
 .city-card {
   display: grid;
   gap: 5px;
@@ -325,6 +429,10 @@ input {
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(18px);
   cursor: grab;
+}
+
+.city-card.is-pinned {
+  cursor: default;
 }
 
 .city-card.is-overridden {
@@ -381,6 +489,9 @@ input {
 }
 
 .card-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   max-width: 210px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -389,6 +500,20 @@ input {
   font-size: 20px;
   font-weight: 700;
   cursor: text;
+}
+
+.card-title-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-pin {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
 }
 
 .card-time {
