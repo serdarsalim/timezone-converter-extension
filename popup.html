@@ -9,10 +9,7 @@
   <body>
     <main class="app">
       <header class="app-header">
-        <div class="view-toggle" id="view-toggle" aria-label="Popup view">
-          <button class="view-toggle-button is-active" data-role="view-toggle" data-view="timezones" type="button">Timezones</button>
-          <button class="view-toggle-button" data-role="view-toggle" data-view="calendar" type="button">Calendar</button>
-        </div>
+        <button class="header-icon-button calendar-toggle-button" id="calendar-toggle-button" type="button" aria-label="Toggle calendar view">🗓</button>
         <div class="header-group">
           <div class="header-actions">
             <button class="header-icon-button" id="settings-button" type="button" aria-label="Time format settings">⚙</button>
@@ -34,7 +31,15 @@
             </label>
             <label class="calendar-field">
               <span class="calendar-label">Time</span>
-              <input class="calendar-input" id="calendar-time" type="time">
+              <div class="calendar-time-editor">
+                <input class="calendar-segment-input" id="calendar-hour" type="text" inputmode="numeric" maxlength="2" aria-label="Hour">
+                <span class="calendar-time-separator">:</span>
+                <input class="calendar-segment-input" id="calendar-minute" type="text" inputmode="numeric" maxlength="2" aria-label="Minute">
+                <select class="calendar-period-select" id="calendar-period" aria-label="AM or PM">
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </label>
           </div>
           <label class="calendar-field">
@@ -48,12 +53,6 @@
               <button class="duration-option is-active" data-role="duration-option" data-minutes="30" type="button">30m</button>
               <button class="duration-option" data-role="duration-option" data-minutes="45" type="button">45m</button>
               <button class="duration-option" data-role="duration-option" data-minutes="60" type="button">1h</button>
-            </div>
-            <div class="calendar-grid">
-              <label class="calendar-field">
-                <span class="calendar-label">Custom minutes</span>
-                <input class="calendar-input" id="calendar-custom-duration" type="number" min="1" step="1" placeholder="Optional">
-              </label>
             </div>
           </div>
           <div class="calendar-preview">

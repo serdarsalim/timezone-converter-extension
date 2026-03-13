@@ -41,16 +41,17 @@ const POPULAR_ZONES = [
 
 const cardsEl = document.querySelector("#cards");
 const calendarViewEl = document.querySelector("#calendar-view");
-const viewToggleEl = document.querySelector("#view-toggle");
 const datalistEl = document.querySelector("#timezone-options");
 const cardTemplate = document.querySelector("#card-template");
 const headerAddButtonEl = document.querySelector("#header-add-button");
+const calendarToggleButtonEl = document.querySelector("#calendar-toggle-button");
 const settingsButtonEl = document.querySelector("#settings-button");
 const settingsPopoverEl = document.querySelector("#settings-popover");
 const calendarDateEl = document.querySelector("#calendar-date");
-const calendarTimeEl = document.querySelector("#calendar-time");
+const calendarHourEl = document.querySelector("#calendar-hour");
+const calendarMinuteEl = document.querySelector("#calendar-minute");
+const calendarPeriodEl = document.querySelector("#calendar-period");
 const calendarTitleEl = document.querySelector("#calendar-title");
-const calendarCustomDurationEl = document.querySelector("#calendar-custom-duration");
 const calendarPreviewListEl = document.querySelector("#calendar-preview-list");
 const calendarSubmitEl = document.querySelector("#calendar-submit");
 const durationOptionsEl = document.querySelector("#duration-options");
@@ -75,7 +76,6 @@ const state = {
     time: "",
     title: "Meeting from Times",
     durationMinutes: 30,
-    customDuration: "",
     initializedForKey: ""
   },
   preferences: {
@@ -330,19 +330,77 @@ function parseTimeValue(value) {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function getOffsetText(timeZone, referenceMs) {
-  const offsetMinutes = Math.round(getTimeZoneOffsetMinutes(timeZone, new Date(referenceMs)));
-  if (offsetMinutes === 0) {
-    return "GMT";
+function getCalendarTimeParts() {
+  const totalMinutes = parseTimeValue(state.calendar.time) ?? 0;
+  const hours24 = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+
+  if (state.preferences.timeFormat === "24h") {
+    return {
+      hour: String(hours24).padStart(2, "0"),
+      minute: String(minutes).padStart(2, "0"),
+      period: ""
+    };
   }
-  const sign = offsetMinutes >= 0 ? "+" : "-";
-  const absolute = Math.abs(offsetMinutes);
-  const hours = Math.floor(absolute / 60);
-  const minutes = absolute % 60;
-  if (minutes === 0) {
-    return `GMT${sign}${hours}`;
+
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return {
+    hour: String(hours12).padStart(2, "0"),
+    minute: String(minutes).padStart(2, "0"),
+    period
+  };
+}
+
+function setCalendarTimeParts(nextHour, nextMinute, nextPeriod = "") {
+  const rawHour = String(nextHour ?? "").replace(/\D/g, "");
+  const rawMinute = String(nextMinute ?? "").replace(/\D/g, "");
+  if (!rawHour || !rawMinute) {
+    return;
   }
-  return `GMT${sign}${hours}:${String(minutes).padStart(2, "0")}`;
+
+  let hour = Number(rawHour);
+  const minute = Math.min(59, Math.max(0, Number(rawMinute)));
+
+  if (state.preferences.timeFormat === "24h") {
+    hour = Math.min(23, Math.max(0, hour));
+    state.calendar.time = formatTimeInputValue(hour * 60 + minute);
+    return;
+  }
+
+  hour = Math.min(12, Math.max(1, hour));
+  let hours24 = hour % 12;
+  if ((nextPeriod || "AM") === "PM") {
+    hours24 += 12;
+  }
+  state.calendar.time = formatTimeInputValue(hours24 * 60 + minute);
+}
+
+function adjustCalendarTimeSegment(segment, direction) {
+  const current = getCalendarTimeParts();
+
+  if (segment === "hour") {
+    if (state.preferences.timeFormat === "24h") {
+      const nextHour = (Number(current.hour) + direction + 24) % 24;
+      setCalendarTimeParts(nextHour, current.minute, current.period);
+      return;
+    }
+
+    let nextHour = Number(current.hour) + direction;
+    let nextPeriod = current.period;
+    if (nextHour > 12) {
+      nextHour = 1;
+      nextPeriod = current.period === "AM" ? "PM" : "AM";
+    } else if (nextHour < 1) {
+      nextHour = 12;
+      nextPeriod = current.period === "AM" ? "PM" : "AM";
+    }
+    setCalendarTimeParts(nextHour, current.minute, nextPeriod);
+    return;
+  }
+
+  const nextMinute = (Number(current.minute) + direction + 60) % 60;
+  setCalendarTimeParts(current.hour, nextMinute, current.period);
 }
 
 function formatCalendarLine(city, referenceMs) {
@@ -356,7 +414,31 @@ function formatCalendarLine(city, referenceMs) {
     minute: "2-digit",
     hour12: state.preferences.timeFormat !== "24h"
   });
-  return `${formatter.format(new Date(referenceMs))} ${getOffsetText(city.timeZone, referenceMs)}`;
+  return formatter.format(new Date(referenceMs));
+}
+
+function formatCalendarPreviewLine(city, referenceMs) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: city.timeZone,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: state.preferences.timeFormat !== "24h"
+  });
+
+  const parts = formatter.formatToParts(new Date(referenceMs));
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+  const timeValue = state.preferences.timeFormat === "24h"
+    ? `${String(Number(values.hour)).padStart(2, "0")}:${values.minute}`
+    : `${values.hour}:${values.minute} ${values.dayPeriod}`;
+
+  return `${values.weekday}, ${values.month} ${values.day} · ${timeValue}`;
 }
 
 function ensureCalendarState(force = false) {
@@ -377,15 +459,10 @@ function ensureCalendarState(force = false) {
   state.calendar.time = formatTimeInputValue(current.minutes);
   state.calendar.title = state.calendar.title || "Meeting from Times";
   state.calendar.durationMinutes = state.calendar.durationMinutes || 30;
-  state.calendar.customDuration = "";
   state.calendar.initializedForKey = key;
 }
 
 function getCalendarDurationMinutes() {
-  const custom = Number.parseInt(state.calendar.customDuration, 10);
-  if (Number.isFinite(custom) && custom > 0) {
-    return custom;
-  }
   return state.calendar.durationMinutes || 30;
 }
 
@@ -586,13 +663,15 @@ function renderCalendarView() {
   ensureCalendarState();
 
   calendarDateEl.value = state.calendar.date;
-  calendarTimeEl.value = state.calendar.time;
+  const timeParts = getCalendarTimeParts();
+  calendarHourEl.value = timeParts.hour;
+  calendarMinuteEl.value = timeParts.minute;
+  calendarPeriodEl.value = timeParts.period || "AM";
+  calendarPeriodEl.classList.toggle("hidden", state.preferences.timeFormat === "24h");
   calendarTitleEl.value = state.calendar.title;
-  calendarCustomDurationEl.value = state.calendar.customDuration;
 
   durationOptionsEl.querySelectorAll('[data-role="duration-option"]').forEach((button) => {
-    const isCustom = Number.parseInt(state.calendar.customDuration, 10) > 0;
-    const isActive = !isCustom && Number(button.dataset.minutes) === state.calendar.durationMinutes;
+    const isActive = Number(button.dataset.minutes) === state.calendar.durationMinutes;
     button.classList.toggle("is-active", isActive);
   });
 
@@ -609,7 +688,7 @@ function renderCalendarView() {
 
       const timeLabel = document.createElement("span");
       timeLabel.className = "calendar-preview-time";
-      timeLabel.textContent = formatCalendarLine(city, context.referenceMs);
+      timeLabel.textContent = formatCalendarPreviewLine(city, context.referenceMs);
 
       row.append(cityLabel, timeLabel);
       fragment.appendChild(row);
@@ -628,9 +707,7 @@ function render() {
   cardsEl.classList.toggle("hidden", isCalendarView);
   calendarViewEl.classList.toggle("hidden", !isCalendarView);
   headerAddButtonEl.classList.toggle("hidden", isCalendarView);
-  viewToggleEl.querySelectorAll('[data-role="view-toggle"]').forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.view === state.activeView);
-  });
+  calendarToggleButtonEl.classList.toggle("is-active", isCalendarView);
   settingsPopoverEl.classList.toggle("hidden", !state.settingsOpen);
   settingsPopoverEl.querySelectorAll('[data-role="time-format"]').forEach((button) => {
     button.classList.toggle("is-active", button.dataset.format === state.preferences.timeFormat);
@@ -1280,12 +1357,8 @@ cardsEl.addEventListener("mousedown", async (event) => {
 
 initialize();
 
-viewToggleEl.addEventListener("click", (event) => {
-  if (event.target?.dataset?.role !== "view-toggle") {
-    return;
-  }
-
-  state.activeView = event.target.dataset.view === "calendar" ? "calendar" : "timezones";
+calendarToggleButtonEl.addEventListener("click", () => {
+  state.activeView = state.activeView === "calendar" ? "timezones" : "calendar";
   state.settingsOpen = false;
   state.addMode = false;
   state.addDraft = "";
@@ -1315,8 +1388,18 @@ calendarDateEl.addEventListener("input", () => {
   renderCalendarView();
 });
 
-calendarTimeEl.addEventListener("input", () => {
-  state.calendar.time = calendarTimeEl.value;
+calendarHourEl.addEventListener("input", () => {
+  setCalendarTimeParts(calendarHourEl.value, calendarMinuteEl.value, calendarPeriodEl.value);
+  renderCalendarView();
+});
+
+calendarMinuteEl.addEventListener("input", () => {
+  setCalendarTimeParts(calendarHourEl.value, calendarMinuteEl.value, calendarPeriodEl.value);
+  renderCalendarView();
+});
+
+calendarPeriodEl.addEventListener("change", () => {
+  setCalendarTimeParts(calendarHourEl.value, calendarMinuteEl.value, calendarPeriodEl.value);
   renderCalendarView();
 });
 
@@ -1324,18 +1407,26 @@ calendarTitleEl.addEventListener("input", () => {
   state.calendar.title = calendarTitleEl.value;
 });
 
-calendarCustomDurationEl.addEventListener("input", () => {
-  state.calendar.customDuration = calendarCustomDurationEl.value;
-  renderCalendarView();
-});
-
 durationOptionsEl.addEventListener("click", (event) => {
   if (event.target?.dataset?.role !== "duration-option") {
     return;
   }
   state.calendar.durationMinutes = Number(event.target.dataset.minutes) || 30;
-  state.calendar.customDuration = "";
   renderCalendarView();
+});
+
+calendarHourEl.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  adjustCalendarTimeSegment("hour", event.deltaY > 0 ? -1 : 1);
+  renderCalendarView();
+  calendarHourEl.focus();
+});
+
+calendarMinuteEl.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  adjustCalendarTimeSegment("minute", event.deltaY > 0 ? -1 : 1);
+  renderCalendarView();
+  calendarMinuteEl.focus();
 });
 
 calendarSubmitEl.addEventListener("click", () => {

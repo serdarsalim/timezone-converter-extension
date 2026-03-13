@@ -25,6 +25,22 @@ body {
   background: radial-gradient(circle at top, #faf9f6 0%, var(--bg) 52%, #efede7 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(17, 19, 26, 0.24) transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 6px;
+}
+
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(17, 19, 26, 0.24);
 }
 
 button,
@@ -42,32 +58,6 @@ input {
   justify-content: space-between;
   gap: 6px;
   margin-bottom: 14px;
-}
-
-.view-toggle {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px;
-  border: 1px solid var(--card-border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: var(--card-shadow);
-}
-
-.view-toggle-button {
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.view-toggle-button.is-active {
-  background: rgba(17, 19, 26, 0.08);
-  color: var(--text);
 }
 
 .header-group {
@@ -128,6 +118,50 @@ input {
   outline: none;
 }
 
+.calendar-time-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(17, 19, 26, 0.08);
+  border-radius: 14px;
+  background: rgba(17, 19, 26, 0.04);
+}
+
+.calendar-segment-input,
+.calendar-period-select {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+}
+
+.calendar-segment-input {
+  width: 34px;
+  padding: 0;
+  text-align: center;
+  font-family: "SF Mono", "IBM Plex Mono", "Menlo", monospace;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.calendar-period-select {
+  margin-left: auto;
+  padding-right: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  appearance: none;
+  cursor: pointer;
+}
+
+.calendar-time-separator {
+  font-family: "SF Mono", "IBM Plex Mono", "Menlo", monospace;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .duration-options {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -160,11 +194,12 @@ input {
 
 .calendar-preview-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(17, 19, 26, 0.05);
+  white-space: nowrap;
 }
 
 .calendar-preview-row:last-child {
@@ -173,14 +208,25 @@ input {
 }
 
 .calendar-preview-city {
+  min-width: 0;
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 15px;
   font-weight: 600;
 }
 
 .calendar-preview-time {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: "SF Mono", "IBM Plex Mono", "Menlo", monospace;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--muted);
+  text-align: right;
 }
 
 .calendar-actions {
@@ -221,6 +267,10 @@ input {
 .header-icon-button:hover,
 .header-add-button:hover {
   background: rgba(17, 19, 26, 0.05);
+}
+
+.calendar-toggle-button.is-active {
+  background: rgba(17, 19, 26, 0.08);
 }
 
 .settings-popover {
