@@ -1686,8 +1686,6 @@ headerAddButtonEl.addEventListener("click", () => {
   state.addMode = !state.addMode;
   state.addDraft = "";
   state.addTouched = false;
-  state.editingTimeId = null;
-  state.editingTimeDraft = null;
   state.focusTarget = state.addMode ? { type: "add", selectAll: false } : null;
   render();
 });
