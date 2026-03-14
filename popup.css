@@ -192,7 +192,7 @@ body[data-surface="sidepanel"] .app {
 .header-brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
 }
 
@@ -204,10 +204,11 @@ body[data-surface="sidepanel"] .app {
 }
 
 .header-brand-name {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--text) 82%, var(--muted) 18%);
+  text-transform: uppercase;
 }
 
 .header-group {
@@ -840,12 +841,30 @@ body[data-surface="sidepanel"] .card-name {
 }
 
 .card-time {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   font-variant-numeric: tabular-nums;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: text;
+}
+
+.card-time-live-separator {
+  margin-inline: 1px;
+  transition: opacity 120ms linear;
+}
+
+.card-time-live-separator.is-dimmed {
+  opacity: 0.26;
+}
+
+.card-time-suffix {
+  margin-left: 5px;
+  font-size: 16px;
+  letter-spacing: 0;
 }
 
 html[data-surface="sidepanel"] .card-time,
@@ -1099,7 +1118,7 @@ body[data-surface="sidepanel"] .card-time-separator {
 
 .reset-button.header-reset-button:hover,
 .reset-button.header-reset-button:focus-visible {
-  background: var(--primary);
+  background: color-mix(in srgb, var(--primary) 90%, white 10%);
   color: var(--primary-text);
 }
 

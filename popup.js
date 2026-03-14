@@ -50,6 +50,7 @@ const state = {
   addDraft: "",
   addTouched: false,
   activeView: "timezones",
+  nowMs: Date.now(),
   compareState: null,
   settingsOpen: false,
   solarDetailsOpen: false,
@@ -350,7 +351,7 @@ function getParts(formatter, date) {
 }
 
 function formatParts(timeZone, referenceMs) {
-  const sourceDate = new Date(referenceMs ?? Date.now());
+  const sourceDate = new Date(referenceMs ?? state.nowMs);
   const displayParts = getParts(getFormatter(timeZone), sourceDate);
   const numericParts = getParts(getNumericFormatter(timeZone), sourceDate);
   const displayMinutes = Number(numericParts.hour) * 60 + Number(numericParts.minute);
@@ -397,6 +398,10 @@ function getReferenceMs() {
   return state.compareState?.referenceMs ?? null;
 }
 
+function getActiveReferenceMs() {
+  return getReferenceMs() ?? state.nowMs;
+}
+
 function buildComparisonSnapshot() {
   const referenceMs = getReferenceMs();
   if (referenceMs === null) {
@@ -406,6 +411,30 @@ function buildComparisonSnapshot() {
   return state.cities
     .map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`)
     .join("\n");
+}
+
+function getTimeTextSegments(timeText) {
+  const match = String(timeText).match(/^(\d{2})(:)(\d{2})(?:\s([AP]M))?$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    hour: match[1],
+    separator: match[2],
+    minute: match[3],
+    suffix: match[4] || ""
+  };
+}
+
+function shouldBlinkLiveSeparator() {
+  return (
+    state.compareState === null &&
+    state.activeView === "timezones" &&
+    !state.editingNameId &&
+    !state.editingTimeId &&
+    !state.addMode &&
+    !state.dragId
+  );
 }
 
 async function copyComparisonSnapshot() {
@@ -487,7 +516,7 @@ function normalizeStoredState(stored) {
 }
 
 function getLiveDatePartsForCity(city) {
-  return formatParts(city.timeZone, getReferenceMs());
+  return formatParts(city.timeZone, getActiveReferenceMs());
 }
 
 function isCalendarCityIncluded(cityId) {
@@ -776,7 +805,7 @@ function getSolarDeclinationAndEquation(dayOfYear) {
   return { declination, equationOfTime };
 }
 
-function getSunEventTimes(city, referenceMs = Date.now()) {
+function getSunEventTimes(city, referenceMs = state.nowMs) {
   const lat = normalizeCoordinate(city?.lat);
   const lon = normalizeCoordinate(city?.lon);
   if (lat === null || lon === null) {
@@ -832,7 +861,7 @@ function formatSolarEventTime(city, eventMs) {
   return `${values.hour}:${values.minute} ${values.dayPeriod}`;
 }
 
-function formatSolarDetailsLine(city, referenceMs = Date.now()) {
+function formatSolarDetailsLine(city, referenceMs = state.nowMs) {
   const events = getSunEventTimes(city, referenceMs);
   if (!events) {
     return null;
@@ -852,7 +881,7 @@ function ensureCalendarState(force = false) {
     return;
   }
 
-  const referenceMs = getReferenceMs() ?? Date.now();
+  const referenceMs = getActiveReferenceMs();
   const current = formatParts(baseCity.timeZone, referenceMs);
   const key = `${baseCity.id}:${current.year}-${current.month}-${current.day}:${current.minutes}`;
   if (!force && state.calendar.initializedForKey === key) {
@@ -1009,7 +1038,7 @@ function getStatusSymbol(status) {
   return "";
 }
 
-function getCityStatus(city, referenceMs = Date.now()) {
+function getCityStatus(city, referenceMs = state.nowMs) {
   const lat = normalizeCoordinate(city?.lat);
   const lon = normalizeCoordinate(city?.lon);
   if (lat !== null && lon !== null) {
@@ -1118,12 +1147,14 @@ async function initialize() {
   state.compareState = normalized.compareState;
   state.calendar.excludedCityIds = normalized.calendarExcludedCityIds;
   state.preferences = normalized.preferences;
+  state.nowMs = Date.now();
   render();
   hydrateStoredCityCoordinates();
   window.setInterval(() => {
     if (state.activeView === "calendar" || state.editingNameId || state.editingTimeId || state.addMode || state.dragId) {
       return;
     }
+    state.nowMs = Date.now();
     render();
   }, 1000);
 }
@@ -1243,7 +1274,7 @@ function render() {
     const metaEl = node.querySelector(".card-meta");
 
     const { dateText, timeText } = getLiveDatePartsForCity(city);
-    const solarLine = formatSolarDetailsLine(city, getReferenceMs());
+    const solarLine = formatSolarDetailsLine(city, getActiveReferenceMs());
     dateEl.textContent = state.solarDetailsOpen && solarLine ? solarLine : dateText;
     dateEl.classList.toggle("is-solar-details", state.solarDetailsOpen && Boolean(solarLine));
     metaEl.classList.toggle("is-editing", state.editingNameId === city.id);
@@ -1339,9 +1370,32 @@ function render() {
       const button = document.createElement("button");
       button.className = "card-time";
       button.type = "button";
-      button.textContent = timeText;
       button.dataset.role = "time-button";
       button.dataset.id = city.id;
+      const segments = getTimeTextSegments(timeText);
+      if (segments) {
+        const hour = document.createElement("span");
+        hour.textContent = segments.hour;
+
+        const separator = document.createElement("span");
+        separator.className = "card-time-live-separator";
+        separator.textContent = segments.separator;
+        separator.classList.toggle("is-dimmed", shouldBlinkLiveSeparator() && state.nowMs % 2000 >= 1000);
+
+        const minute = document.createElement("span");
+        minute.textContent = segments.minute;
+
+        button.append(hour, separator, minute);
+
+        if (segments.suffix) {
+          const suffix = document.createElement("span");
+          suffix.className = "card-time-suffix";
+          suffix.textContent = segments.suffix;
+          button.appendChild(suffix);
+        }
+      } else {
+        button.textContent = timeText;
+      }
       timeHost.replaceChildren(button);
     }
 
@@ -1354,7 +1408,7 @@ function render() {
       removeButton.dataset.id = city.id;
       metaEl.appendChild(removeButton);
     } else {
-      const status = getCityStatus(city, getReferenceMs());
+      const status = getCityStatus(city, getActiveReferenceMs());
       if (status) {
         const pill = document.createElement("button");
         pill.type = "button";
