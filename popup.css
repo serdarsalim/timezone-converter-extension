@@ -118,6 +118,7 @@ input {
 .app {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  position: relative;
   width: 420px;
   min-width: 420px;
   max-width: 420px;
@@ -540,6 +541,20 @@ body[data-surface="sidepanel"] .app-header {
   z-index: 5;
 }
 
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(17, 19, 26, 0.08);
+  backdrop-filter: blur(2px);
+  z-index: 3;
+  cursor: default;
+}
+
+:root[data-theme="dark"] .settings-backdrop {
+  background: rgba(0, 0, 0, 0.18);
+}
+
 html[data-surface="sidepanel"] .settings-popover,
 body[data-surface="sidepanel"] .settings-popover {
   max-width: calc(100vw - 28px);
@@ -621,6 +636,20 @@ body[data-surface="sidepanel"] .settings-popover {
   height: 20px;
   border-radius: 999px;
   background: var(--switch-track);
+}
+
+.settings-footer-link {
+  display: block;
+  padding: 4px 6px 2px;
+  color: var(--muted);
+  font-size: 11px;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.settings-footer-link:hover,
+.settings-footer-link:focus-visible {
+  color: var(--text);
 }
 
 .settings-switch-knob {

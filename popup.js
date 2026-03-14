@@ -27,6 +27,7 @@ const headerResetButtonEl = document.querySelector("#header-reset-button");
 const headerCopyButtonEl = document.querySelector("#header-copy-button");
 const settingsButtonEl = document.querySelector("#settings-button");
 const settingsPopoverEl = document.querySelector("#settings-popover");
+const settingsBackdropEl = document.querySelector("#settings-backdrop");
 const calendarDateEl = document.querySelector("#calendar-date");
 const calendarHourEl = document.querySelector("#calendar-hour");
 const calendarMinuteEl = document.querySelector("#calendar-minute");
@@ -1203,6 +1204,7 @@ function render() {
   headerResetButtonEl.classList.toggle("hidden", !state.compareState);
   headerCopyButtonEl.classList.toggle("hidden", !state.compareState);
   settingsPopoverEl.classList.toggle("hidden", !state.settingsOpen);
+  settingsBackdropEl.classList.toggle("hidden", !state.settingsOpen);
   settingsPopoverEl.querySelectorAll('[data-role="time-format"]').forEach((button) => {
     button.classList.toggle("is-active", button.dataset.format === state.preferences.timeFormat);
   });
@@ -2173,6 +2175,14 @@ settingsButtonEl.addEventListener("click", (event) => {
   state.addMode = false;
   clearCityLookupState();
   state.settingsOpen = !state.settingsOpen;
+  render();
+});
+
+settingsBackdropEl.addEventListener("click", () => {
+  if (!state.settingsOpen) {
+    return;
+  }
+  state.settingsOpen = false;
   render();
 });
 
