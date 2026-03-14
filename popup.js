@@ -519,6 +519,25 @@ function getLiveDatePartsForCity(city) {
   return formatParts(city.timeZone, getActiveReferenceMs());
 }
 
+function getLocalDayStamp(parts) {
+  return Date.UTC(parts.year, parts.month - 1, parts.day);
+}
+
+function getRelativeDayLabel(parts, baseParts, isBaseCity) {
+  if (isBaseCity) {
+    return parts.dateText;
+  }
+
+  const dayDelta = Math.round((getLocalDayStamp(parts) - getLocalDayStamp(baseParts)) / 86400000);
+  if (dayDelta > 0) {
+    return `+${dayDelta}d`;
+  }
+  if (dayDelta < 0) {
+    return `${dayDelta}d`;
+  }
+  return "\u00a0";
+}
+
 function isCalendarCityIncluded(cityId) {
   return !state.calendar.excludedCityIds.includes(cityId);
 }
@@ -1257,6 +1276,8 @@ function render() {
   }
 
   const fragment = document.createDocumentFragment();
+  const baseCity = state.cities[0] || null;
+  const baseParts = baseCity ? getLiveDatePartsForCity(baseCity) : null;
 
   for (const city of state.cities) {
     const node = cardTemplate.content.firstElementChild.cloneNode(true);
@@ -1273,10 +1294,14 @@ function render() {
     const dateEl = node.querySelector(".card-date");
     const metaEl = node.querySelector(".card-meta");
 
-    const { dateText, timeText } = getLiveDatePartsForCity(city);
+    const liveParts = getLiveDatePartsForCity(city);
+    const { dateText, timeText } = liveParts;
     const solarLine = formatSolarDetailsLine(city, getActiveReferenceMs());
-    dateEl.textContent = state.solarDetailsOpen && solarLine ? solarLine : dateText;
+    const relativeDayLabel = baseParts ? getRelativeDayLabel(liveParts, baseParts, city.id === baseCity?.id) : dateText;
+    dateEl.textContent = state.solarDetailsOpen && solarLine ? solarLine : relativeDayLabel;
     dateEl.classList.toggle("is-solar-details", state.solarDetailsOpen && Boolean(solarLine));
+    dateEl.classList.toggle("is-relative-day", !state.solarDetailsOpen && city.id !== baseCity?.id && relativeDayLabel.trim());
+    dateEl.title = state.solarDetailsOpen && solarLine ? "" : dateText;
     metaEl.classList.toggle("is-editing", state.editingNameId === city.id);
 
     if (state.editingNameId === city.id) {
