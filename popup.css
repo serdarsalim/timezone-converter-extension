@@ -139,7 +139,7 @@ body[data-surface="sidepanel"] .app {
   justify-content: space-between;
   gap: 6px;
   margin-bottom: 0;
-  padding: 20px 18px 14px;
+  padding: 17px 18px 11px;
   background: radial-gradient(circle at top, var(--bg-start) 0%, var(--bg) 52%, var(--bg-end) 100%);
 }
 
@@ -232,7 +232,7 @@ body[data-surface="sidepanel"] .app {
 .calendar-card {
   display: grid;
   gap: 14px;
-  padding: 16px 18px 18px;
+  padding: 14px 18px 16px;
   border: 1px solid var(--card-border);
   border-radius: 22px;
   background: var(--card);
@@ -575,7 +575,7 @@ body[data-surface="sidepanel"] .settings-popover {
   position: relative;
   display: grid;
   gap: 5px;
-  padding: 16px 34px 14px 18px;
+  padding: 14px 34px 12px 18px;
   border: 1px solid var(--card-border);
   border-radius: 22px;
   background: var(--card);
