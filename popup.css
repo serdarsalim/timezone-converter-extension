@@ -392,13 +392,17 @@ body[data-surface="sidepanel"] .app-header {
 }
 
 .calendar-preview-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, auto);
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
+}
+
+.calendar-preview-row.is-excluded {
+  opacity: 0.55;
 }
 
 .calendar-preview-row:last-child {
@@ -406,9 +410,32 @@ body[data-surface="sidepanel"] .app-header {
   border-bottom: 0;
 }
 
+.calendar-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--field-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.calendar-preview-toggle-mark {
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.52;
+}
+
+.calendar-preview-row.is-excluded .calendar-preview-toggle-mark {
+  opacity: 0;
+}
+
 .calendar-preview-city {
   min-width: 0;
-  max-width: 112px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

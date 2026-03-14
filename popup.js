@@ -58,7 +58,8 @@ const state = {
     time: "",
     title: "",
     durationMinutes: 30,
-    initializedForKey: ""
+    initializedForKey: "",
+    excludedCityIds: []
   },
   preferences: {
     timeFormat: "12h",
@@ -451,10 +452,17 @@ function sanitizeStoredCities(cities) {
 }
 
 function normalizeStoredState(stored) {
+  const cities = sanitizeStoredCities(stored?.cities?.length ? stored.cities : DEFAULT_CITIES);
+  const cityIds = new Set(cities.map((city) => city.id));
+  const excludedCityIds = Array.isArray(stored?.calendarExcludedCityIds)
+    ? stored.calendarExcludedCityIds.filter((cityId) => cityIds.has(cityId))
+    : [];
+
   if (!stored?.cities?.length) {
     return {
-      cities: DEFAULT_CITIES,
+      cities,
       compareState: null,
+      calendarExcludedCityIds: excludedCityIds,
       preferences: {
         timeFormat: "12h",
         pinFirstTimezone: true,
@@ -465,8 +473,9 @@ function normalizeStoredState(stored) {
   }
 
   return {
-    cities: sanitizeStoredCities(stored.cities),
+    cities,
     compareState: stored.compareState ?? null,
+    calendarExcludedCityIds: excludedCityIds,
     preferences: {
       timeFormat: stored.preferences?.timeFormat === "24h" ? "24h" : "12h",
       pinFirstTimezone: stored.preferences?.pinFirstTimezone !== false,
@@ -478,6 +487,14 @@ function normalizeStoredState(stored) {
 
 function getLiveDatePartsForCity(city) {
   return formatParts(city.timeZone, getReferenceMs());
+}
+
+function isCalendarCityIncluded(cityId) {
+  return !state.calendar.excludedCityIds.includes(cityId);
+}
+
+function getIncludedCalendarCities() {
+  return state.cities.filter((city) => isCalendarCityIncluded(city.id));
 }
 
 function getBaseCalendarCity() {
@@ -881,6 +898,11 @@ function getCalendarEventUrl() {
     return null;
   }
 
+  const includedCities = getIncludedCalendarCities();
+  if (!includedCities.length) {
+    return null;
+  }
+
   const { baseCity, referenceMs, endReferenceMs } = context;
   const start = formatParts(baseCity.timeZone, referenceMs);
   const end = formatParts(baseCity.timeZone, endReferenceMs);
@@ -897,14 +919,14 @@ function getCalendarEventUrl() {
     "---------------------------------------------",
     "Time across timezones:",
     "",
-    ...state.cities.map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`),
+    ...includedCities.map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`),
     "",
-    "Created with Asr World Clock",
+    "Created with ASR World Clock",
     "---------------------------------------------"
   ];
 
   const params = new URLSearchParams({
-    text: state.calendar.title.trim() || "Meeting from Asr World Clock",
+    text: state.calendar.title.trim() || "Meeting from ASR World Clock",
     dates: `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
     details: detailsLines.join("\n"),
     ctz: baseCity.timeZone
@@ -1002,6 +1024,7 @@ async function persist() {
   await storage.set({
     cities: state.cities,
     compareState: state.compareState,
+    calendarExcludedCityIds: state.calendar.excludedCityIds,
     preferences: state.preferences
   });
 }
@@ -1092,6 +1115,7 @@ async function initialize() {
   const normalized = normalizeStoredState(stored);
   state.cities = normalized.cities;
   state.compareState = normalized.compareState;
+  state.calendar.excludedCityIds = normalized.calendarExcludedCityIds;
   state.preferences = normalized.preferences;
   render();
   hydrateStoredCityCoordinates();
@@ -1125,6 +1149,19 @@ function renderCalendarView() {
     for (const city of state.cities) {
       const row = document.createElement("div");
       row.className = "calendar-preview-row";
+      row.classList.toggle("is-excluded", !isCalendarCityIncluded(city.id));
+
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "calendar-preview-toggle";
+      toggle.dataset.role = "calendar-city-toggle";
+      toggle.dataset.id = city.id;
+      toggle.setAttribute("aria-pressed", isCalendarCityIncluded(city.id) ? "true" : "false");
+
+      const toggleMark = document.createElement("span");
+      toggleMark.className = "calendar-preview-toggle-mark";
+      toggleMark.textContent = "✓";
+      toggle.appendChild(toggleMark);
 
       const cityLabel = document.createElement("span");
       cityLabel.className = "calendar-preview-city";
@@ -1144,7 +1181,7 @@ function renderCalendarView() {
         timeLabel.appendChild(statusIcon);
       }
 
-      row.append(cityLabel, timeLabel);
+      row.append(toggle, cityLabel, timeLabel);
       fragment.appendChild(row);
     }
   } else {
@@ -2059,6 +2096,27 @@ durationOptionsEl.addEventListener("click", (event) => {
     return;
   }
   state.calendar.durationMinutes = Number(event.target.dataset.minutes) || 30;
+  renderCalendarView();
+});
+
+calendarPreviewListEl.addEventListener("click", async (event) => {
+  const toggle = event.target?.closest('[data-role="calendar-city-toggle"]');
+  if (!toggle) {
+    return;
+  }
+
+  const cityId = toggle.dataset.id;
+  if (!cityId) {
+    return;
+  }
+
+  if (isCalendarCityIncluded(cityId)) {
+    state.calendar.excludedCityIds = [...state.calendar.excludedCityIds, cityId];
+  } else {
+    state.calendar.excludedCityIds = state.calendar.excludedCityIds.filter((id) => id !== cityId);
+  }
+
+  await persist();
   renderCalendarView();
 });
 
