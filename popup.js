@@ -16,6 +16,9 @@ const DEFAULT_CITIES = [
 
 const cardsEl = document.querySelector("#cards");
 const calendarViewEl = document.querySelector("#calendar-view");
+const appEl = document.querySelector(".app");
+const appHeaderEl = document.querySelector(".app-header");
+const appScrollEl = document.querySelector(".app-scroll");
 const cardTemplate = document.querySelector("#card-template");
 const headerAddButtonEl = document.querySelector("#header-add-button");
 const addButtonWrapEl = document.querySelector(".add-button-wrap");
@@ -1024,6 +1027,25 @@ function focusAndSelect(selector, focusOptions = {}) {
   });
 }
 
+function updatePopupHeight() {
+  if (surface === "sidepanel") {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    const scrollStyles = window.getComputedStyle(appScrollEl);
+    const paddingBlock = (
+      parseFloat(scrollStyles.paddingTop || "0") +
+      parseFloat(scrollStyles.paddingBottom || "0")
+    );
+    const activeContentHeight = state.activeView === "calendar"
+      ? calendarViewEl.offsetHeight
+      : cardsEl.offsetHeight + (addButtonWrapEl.classList.contains("hidden") ? 0 : addButtonWrapEl.offsetHeight);
+    const desiredHeight = Math.ceil(appHeaderEl.offsetHeight + paddingBlock + activeContentHeight);
+    appEl.style.height = `${Math.min(600, desiredHeight)}px`;
+  });
+}
+
 async function hydrateStoredCityCoordinates() {
   const pendingCities = state.cities.filter((city) => city.lat === null || city.lon === null);
   if (!pendingCities.length) {
@@ -1160,6 +1182,7 @@ function render() {
   if (isCalendarView) {
     renderCalendarView();
     cardsEl.replaceChildren();
+    updatePopupHeight();
     return;
   }
 
@@ -1337,6 +1360,8 @@ function render() {
     focusAndSelect('input[data-role="add-input"]', state.focusTarget);
     state.focusTarget = null;
   }
+
+  updatePopupHeight();
 }
 
 function renderAddCard() {
