@@ -14,42 +14,8 @@ const DEFAULT_CITIES = [
   { id: crypto.randomUUID(), label: "Dublin", timeZone: "Europe/Dublin" }
 ];
 
-const POPULAR_ZONES = [
-  ["San Francisco", "America/Los_Angeles"],
-  ["Los Angeles", "America/Los_Angeles"],
-  ["New York", "America/New_York"],
-  ["Chicago", "America/Chicago"],
-  ["Denver", "America/Denver"],
-  ["London", "Europe/London"],
-  ["Dublin", "Europe/Dublin"],
-  ["Vienna", "Europe/Vienna"],
-  ["Istanbul", "Europe/Istanbul"],
-  ["Kuala Lumpur", "Asia/Kuala_Lumpur"],
-  ["Singapore", "Asia/Singapore"],
-  ["Tokyo", "Asia/Tokyo"],
-  ["Seoul", "Asia/Seoul"],
-  ["Sydney", "Australia/Sydney"],
-  ["Auckland", "Pacific/Auckland"],
-  ["Dubai", "Asia/Dubai"],
-  ["Berlin", "Europe/Berlin"],
-  ["Paris", "Europe/Paris"],
-  ["Amsterdam", "Europe/Amsterdam"],
-  ["Madrid", "Europe/Madrid"],
-  ["Lisbon", "Europe/Lisbon"],
-  ["Warsaw", "Europe/Warsaw"],
-  ["Toronto", "America/Toronto"],
-  ["Vancouver", "America/Vancouver"],
-  ["Mexico City", "America/Mexico_City"],
-  ["Sao Paulo", "America/Sao_Paulo"],
-  ["Johannesburg", "Africa/Johannesburg"],
-  ["Cairo", "Africa/Cairo"],
-  ["Mumbai", "Asia/Kolkata"],
-  ["Hong Kong", "Asia/Hong_Kong"]
-];
-
 const cardsEl = document.querySelector("#cards");
 const calendarViewEl = document.querySelector("#calendar-view");
-const datalistEl = document.querySelector("#timezone-options");
 const cardTemplate = document.querySelector("#card-template");
 const headerAddButtonEl = document.querySelector("#header-add-button");
 const addButtonWrapEl = document.querySelector(".add-button-wrap");
@@ -94,8 +60,22 @@ const state = {
     pinFirstTimezone: true,
     openInSidePanel: false,
     darkMode: false
+  },
+  cityLookup: {
+    token: 0,
+    mode: null,
+    cityId: null,
+    query: "",
+    results: [],
+    loading: false,
+    error: ""
   }
 };
+
+let citySearchWorker = null;
+let citySearchWarmPromise = null;
+let citySearchRequestId = 0;
+const citySearchPending = new Map();
 
 function isFirstTimezonePinned() {
   return state.preferences.pinFirstTimezone !== false;
@@ -128,10 +108,6 @@ const storage = {
   }
 };
 
-function zoneLabel(zone) {
-  return zone.split("/").at(-1).replace(/_/g, " ");
-}
-
 function titleCase(value) {
   return value
     .trim()
@@ -140,73 +116,179 @@ function titleCase(value) {
     .join(" ");
 }
 
-function getAllSuggestions() {
-  const seen = new Map();
-  for (const [label, timeZone] of POPULAR_ZONES) {
-    seen.set(`${label}||${timeZone}`, { label, timeZone });
-  }
-
-  const zones = typeof Intl.supportedValuesOf === "function"
-    ? Intl.supportedValuesOf("timeZone")
-    : [];
-
-  for (const timeZone of zones) {
-    const label = zoneLabel(timeZone);
-    seen.set(`${label}||${timeZone}`, { label, timeZone });
-  }
-
-  return Array.from(seen.values()).sort((a, b) => a.label.localeCompare(b.label));
-}
-
-const suggestions = getAllSuggestions();
-
-function fillDatalist() {
-  const fragment = document.createDocumentFragment();
-  for (const item of suggestions) {
-    const option = document.createElement("option");
-    option.value = item.label;
-    option.label = item.timeZone;
-    fragment.appendChild(option);
-  }
-  datalistEl.replaceChildren(fragment);
-}
-
 function normalizeQuery(value) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function getNameSuggestions(query, limit = 6) {
+function clearCityLookupState() {
+  state.cityLookup.token += 1;
+  state.cityLookup.mode = null;
+  state.cityLookup.cityId = null;
+  state.cityLookup.query = "";
+  state.cityLookup.results = [];
+  state.cityLookup.loading = false;
+  state.cityLookup.error = "";
+}
+
+function getCityLookupResults(mode, query, cityId = null) {
   const normalized = normalizeQuery(query);
   if (!normalized) {
     return [];
   }
+  if (
+    state.cityLookup.mode !== mode ||
+    state.cityLookup.cityId !== cityId ||
+    state.cityLookup.query !== normalized
+  ) {
+    return [];
+  }
+  return state.cityLookup.results;
+}
 
-  return suggestions
-    .map((item) => {
-      const label = item.label.toLowerCase();
-      const zone = item.timeZone.toLowerCase().replace(/_/g, " ");
-      let rank = 99;
-      let matchType = "";
+function ensureCitySearchWorker() {
+  if (citySearchWorker) {
+    return citySearchWorker;
+  }
 
-      if (label === normalized) {
-        rank = 0;
-        matchType = "exact";
-      } else if (label.startsWith(normalized)) {
-        rank = 1;
-        matchType = "city";
-      } else if (label.includes(normalized)) {
-        rank = 2;
-        matchType = "city";
-      } else if (zone.includes(normalized)) {
-        rank = 3;
-        matchType = "zone";
+  const workerUrl = globalThis.chrome?.runtime?.getURL
+    ? chrome.runtime.getURL("city-search-worker.js")
+    : "city-search-worker.js";
+  citySearchWorker = new Worker(workerUrl);
+  citySearchWorker.addEventListener("message", (event) => {
+    const { requestId, ...payload } = event.data || {};
+    const pending = citySearchPending.get(requestId);
+    if (!pending) {
+      return;
+    }
+    citySearchPending.delete(requestId);
+    if (payload.type === "error") {
+      pending.reject(new Error(payload.message || "City search failed"));
+      return;
+    }
+    pending.resolve(payload);
+  });
+  return citySearchWorker;
+}
+
+function requestCitySearch(payload) {
+  ensureCitySearchWorker();
+  const requestId = ++citySearchRequestId;
+  return new Promise((resolve, reject) => {
+    citySearchPending.set(requestId, { resolve, reject });
+    citySearchWorker.postMessage({ ...payload, requestId });
+  });
+}
+
+function warmCitySearch() {
+  if (citySearchWarmPromise) {
+    return citySearchWarmPromise;
+  }
+  citySearchWarmPromise = requestCitySearch({ type: "warmup" }).catch((error) => {
+    console.error(error);
+  });
+  return citySearchWarmPromise;
+}
+
+async function updateCityLookup(mode, query, cityId = null, limit = 6) {
+  const normalized = normalizeQuery(query);
+  const token = state.cityLookup.token + 1;
+  state.cityLookup.token = token;
+  state.cityLookup.mode = mode;
+  state.cityLookup.cityId = cityId;
+  state.cityLookup.query = normalized;
+  state.cityLookup.results = [];
+  state.cityLookup.loading = Boolean(normalized);
+  state.cityLookup.error = "";
+
+  if (!normalized) {
+    render();
+    return;
+  }
+
+  try {
+    const response = await requestCitySearch({
+      type: "search",
+      query: normalized,
+      limit
+    });
+    if (state.cityLookup.token !== token) {
+      return;
+    }
+    state.cityLookup.results = response.results || [];
+    state.cityLookup.loading = false;
+    render();
+  } catch (error) {
+    if (state.cityLookup.token !== token) {
+      return;
+    }
+    state.cityLookup.results = [];
+    state.cityLookup.loading = false;
+    state.cityLookup.error = error instanceof Error ? error.message : String(error);
+    render();
+  }
+}
+
+async function resolveCitySuggestion(value) {
+  const normalized = normalizeQuery(value);
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    const response = await requestCitySearch({
+      type: "resolve",
+      value: normalized
+    });
+    return response.result || null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+}
+
+function buildSuggestionList(results, emptyText, mode, cityId = null) {
+  const list = document.createElement("div");
+  list.className = "name-suggestion-list";
+
+  if (results.length) {
+    for (const result of results) {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "name-suggestion-item";
+      option.dataset.role = mode === "add" ? "add-suggestion" : "name-suggestion";
+      if (cityId) {
+        option.dataset.id = cityId;
       }
+      option.dataset.label = result.label;
+      option.dataset.timeZone = result.timeZone;
 
-      return rank === 99 ? null : { ...item, rank, matchType };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label))
-    .slice(0, limit);
+      const copy = document.createElement("span");
+      copy.className = "name-suggestion-copy";
+
+      const label = document.createElement("span");
+      label.className = "name-suggestion-label";
+      label.textContent = result.label;
+
+      const zone = document.createElement("span");
+      zone.className = "name-suggestion-zone";
+      zone.textContent = result.timeZone;
+
+      const match = document.createElement("span");
+      match.className = "name-suggestion-match";
+      match.textContent = result.matchType;
+
+      copy.append(label, zone);
+      option.append(copy, match);
+      list.appendChild(option);
+    }
+    return list;
+  }
+
+  const empty = document.createElement("div");
+  empty.className = "name-suggestion-empty";
+  empty.textContent = emptyText;
+  list.appendChild(empty);
+  return list;
 }
 
 function getFormatter(timeZone) {
@@ -693,30 +775,6 @@ function getStatus(minutes) {
   return null;
 }
 
-function findSuggestion(value) {
-  const normalized = normalizeQuery(value);
-  if (!normalized) {
-    return null;
-  }
-
-  const aliasMatch = POPULAR_ZONES.find(([label]) => label.toLowerCase() === normalized);
-  if (aliasMatch) {
-    return { label: titleCase(aliasMatch[0]), timeZone: aliasMatch[1] };
-  }
-
-  const exact = suggestions.find((item) => item.label.toLowerCase() === normalized);
-  if (exact) {
-    return { label: exact.label, timeZone: exact.timeZone };
-  }
-
-  const loose = suggestions.find((item) => {
-    const haystack = `${item.label} ${item.timeZone}`.toLowerCase().replace(/_/g, " ");
-    return haystack.includes(normalized);
-  });
-
-  return loose ? { label: titleCase(value), timeZone: loose.timeZone } : null;
-}
-
 async function persist() {
   await storage.set({
     cities: state.cities,
@@ -747,7 +805,6 @@ function focusAndSelect(selector, focusOptions = {}) {
 }
 
 async function initialize() {
-  fillDatalist();
   const stored = await storage.get();
   const normalized = normalizeStoredState(stored);
   state.cities = normalized.cities;
@@ -869,47 +926,9 @@ function render() {
       nameHost.replaceChildren(searchShell);
 
       if (state.editingNameTouched && normalizeQuery(state.editingNameDraft)) {
-        const results = getNameSuggestions(state.editingNameDraft);
-        const list = document.createElement("div");
-        list.className = "name-suggestion-list";
-
-        if (results.length) {
-          for (const result of results) {
-            const option = document.createElement("button");
-            option.type = "button";
-            option.className = "name-suggestion-item";
-            option.dataset.role = "name-suggestion";
-            option.dataset.id = city.id;
-            option.dataset.label = result.label;
-            option.dataset.timeZone = result.timeZone;
-
-            const copy = document.createElement("span");
-            copy.className = "name-suggestion-copy";
-
-            const label = document.createElement("span");
-            label.className = "name-suggestion-label";
-            label.textContent = result.label;
-
-            const zone = document.createElement("span");
-            zone.className = "name-suggestion-zone";
-            zone.textContent = result.timeZone;
-
-            const match = document.createElement("span");
-            match.className = "name-suggestion-match";
-            match.textContent = result.matchType;
-
-            copy.append(label, zone);
-            option.append(copy, match);
-            list.appendChild(option);
-          }
-        } else {
-          const empty = document.createElement("div");
-          empty.className = "name-suggestion-empty";
-          empty.textContent = "No matching time zones";
-          list.appendChild(empty);
-        }
-
-        editZoneEl.appendChild(list);
+        const emptyText = state.cityLookup.loading ? "Searching cities..." : "No matching cities";
+        const results = getCityLookupResults("name", state.editingNameDraft, city.id);
+        editZoneEl.appendChild(buildSuggestionList(results, emptyText, "name", city.id));
       }
     } else {
       const button = document.createElement("button");
@@ -1069,46 +1088,9 @@ function renderAddCard() {
   card.append(form);
 
   if (state.addTouched && normalizeQuery(state.addDraft)) {
-    const results = getNameSuggestions(state.addDraft);
-    const list = document.createElement("div");
-    list.className = "name-suggestion-list";
-
-    if (results.length) {
-      for (const result of results) {
-        const option = document.createElement("button");
-        option.type = "button";
-        option.className = "name-suggestion-item";
-        option.dataset.role = "add-suggestion";
-        option.dataset.label = result.label;
-        option.dataset.timeZone = result.timeZone;
-
-        const copy = document.createElement("span");
-        copy.className = "name-suggestion-copy";
-
-        const label = document.createElement("span");
-        label.className = "name-suggestion-label";
-        label.textContent = result.label;
-
-        const zone = document.createElement("span");
-        zone.className = "name-suggestion-zone";
-        zone.textContent = result.timeZone;
-
-        const match = document.createElement("span");
-        match.className = "name-suggestion-match";
-        match.textContent = result.matchType;
-
-        copy.append(label, zone);
-        option.append(copy, match);
-        list.appendChild(option);
-      }
-    } else {
-      const empty = document.createElement("div");
-      empty.className = "name-suggestion-empty";
-      empty.textContent = "No matching time zones";
-      list.appendChild(empty);
-    }
-
-    card.append(list);
+    const emptyText = state.cityLookup.loading ? "Searching cities..." : "No matching cities";
+    const results = getCityLookupResults("add", state.addDraft);
+    card.append(buildSuggestionList(results, emptyText, "add"));
   }
 
   wrapper.append(card);
@@ -1206,11 +1188,12 @@ async function commitNameEdit(id, value) {
     state.editingNameId = null;
     state.editingNameDraft = "";
     state.editingNameTouched = false;
+    clearCityLookupState();
     render();
     return;
   }
 
-  const suggestion = findSuggestion(trimmed);
+  const suggestion = await resolveCitySuggestion(trimmed);
   if (suggestion) {
     city.label = suggestion.label;
     city.timeZone = suggestion.timeZone;
@@ -1221,6 +1204,7 @@ async function commitNameEdit(id, value) {
   state.editingNameId = null;
   state.editingNameDraft = "";
   state.editingNameTouched = false;
+  clearCityLookupState();
   await persist();
   render();
 }
@@ -1236,6 +1220,7 @@ async function applyNameSuggestion(id, label, timeZone) {
   state.editingNameId = null;
   state.editingNameDraft = "";
   state.editingNameTouched = false;
+  clearCityLookupState();
   await persist();
   render();
 }
@@ -1285,7 +1270,7 @@ async function commitTimeEdit(id) {
 }
 
 async function addCity(value) {
-  const suggestion = findSuggestion(value);
+  const suggestion = await resolveCitySuggestion(value);
   if (!suggestion) {
     render();
     return;
@@ -1299,6 +1284,7 @@ async function addCity(value) {
   state.addMode = false;
   state.addDraft = "";
   state.addTouched = false;
+  clearCityLookupState();
   await persist();
   render();
 }
@@ -1312,6 +1298,7 @@ async function addCitySuggestion(label, timeZone) {
   state.addMode = false;
   state.addDraft = "";
   state.addTouched = false;
+  clearCityLookupState();
   await persist();
   render();
 }
@@ -1401,6 +1388,8 @@ cardsEl.addEventListener("click", async (event) => {
     state.editingNameTouched = false;
     state.editingTimeId = null;
     state.editingTimeDraft = null;
+    clearCityLookupState();
+    warmCitySearch();
     state.focusTarget = {
       type: "name",
       id,
@@ -1420,6 +1409,7 @@ cardsEl.addEventListener("click", async (event) => {
     state.editingNameId = null;
     state.editingNameDraft = "";
     state.editingNameTouched = false;
+    clearCityLookupState();
     state.focusTarget = {
       type: "time-segment",
       id,
@@ -1439,6 +1429,7 @@ cardsEl.addEventListener("click", async (event) => {
     state.addMode = false;
     state.addDraft = "";
     state.addTouched = false;
+    clearCityLookupState();
     render();
   }
 });
@@ -1458,6 +1449,7 @@ cardsEl.addEventListener("keydown", async (event) => {
     state.addTouched = false;
     state.settingsOpen = false;
     state.focusTarget = null;
+    clearCityLookupState();
     render();
     return;
   }
@@ -1551,7 +1543,7 @@ cardsEl.addEventListener("input", (event) => {
       caretStart: event.target.selectionStart ?? event.target.value.length,
       caretEnd: event.target.selectionEnd ?? event.target.value.length
     };
-    render();
+    updateCityLookup("name", event.target.value, id);
   }
 
   if (role === "add-input" && state.addMode) {
@@ -1562,7 +1554,7 @@ cardsEl.addEventListener("input", (event) => {
       caretStart: event.target.selectionStart ?? event.target.value.length,
       caretEnd: event.target.selectionEnd ?? event.target.value.length
     };
-    render();
+    updateCityLookup("add", event.target.value);
   }
 
   if ((role === "time-hour" || role === "time-minute") && id === state.editingTimeId) {
@@ -1679,6 +1671,7 @@ calendarToggleButtonEl.addEventListener("click", () => {
   state.editingTimeId = null;
   state.editingTimeDraft = null;
   state.focusTarget = null;
+  clearCityLookupState();
   if (state.activeView === "calendar") {
     ensureCalendarState(true);
   }
@@ -1690,6 +1683,10 @@ headerAddButtonEl.addEventListener("click", () => {
   state.addMode = !state.addMode;
   state.addDraft = "";
   state.addTouched = false;
+  clearCityLookupState();
+  if (state.addMode) {
+    warmCitySearch();
+  }
   state.focusTarget = state.addMode ? { type: "add", selectAll: false } : null;
   render();
 });
@@ -1766,6 +1763,7 @@ headerResetButtonEl.addEventListener("click", async () => {
 settingsButtonEl.addEventListener("click", (event) => {
   event.stopPropagation();
   state.addMode = false;
+  clearCityLookupState();
   state.settingsOpen = !state.settingsOpen;
   render();
 });
