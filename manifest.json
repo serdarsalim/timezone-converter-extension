@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Asr World Clock",
-  "version": "2026.3.14",
+  "version": "2026.3.14.1",
   "description": "Minimalist time zone converter for Chrome.",
   "permissions": [
     "storage",

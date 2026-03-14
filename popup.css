@@ -143,8 +143,8 @@ body[data-surface="sidepanel"] .app {
   justify-content: space-between;
   gap: 6px;
   margin-bottom: 0;
-  padding: 17px 18px 11px;
-  background: radial-gradient(circle at top, var(--bg-start) 0%, var(--bg) 52%, var(--bg-end) 100%);
+  padding: 15px 18px 9px;
+  background: transparent;
 }
 
 .header-center {
@@ -221,7 +221,7 @@ body[data-surface="sidepanel"] .app {
 
 .app-scroll {
   min-height: 0;
-  padding: 14px 18px 18px;
+  padding: 12px 18px 14px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable both-edges;
@@ -244,13 +244,13 @@ body[data-surface="sidepanel"] .app {
 
 .cards {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .add-button-wrap {
   display: flex;
   justify-content: center;
-  padding: 10px 0 6px;
+  padding: 8px 0 4px;
 }
 
 .calendar-view {
@@ -623,7 +623,7 @@ body[data-surface="sidepanel"] .settings-popover {
   position: relative;
   display: grid;
   gap: 5px;
-  padding: 14px 34px 12px 18px;
+  padding: 12px 34px 10px 18px;
   border: 1px solid var(--card-border);
   border-radius: 22px;
   background: var(--card);
