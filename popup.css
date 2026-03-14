@@ -152,7 +152,9 @@ body[data-surface="sidepanel"] .app {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 8px;
   pointer-events: none;
 }
 
@@ -161,6 +163,29 @@ body[data-surface="sidepanel"] .app {
   background: var(--primary);
   color: var(--primary-text);
   box-shadow: var(--card-shadow);
+}
+
+.header-copy-button {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--button);
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.header-copy-button:hover,
+.header-copy-button:focus-visible {
+  background: var(--button-hover);
 }
 
 .header-brand {

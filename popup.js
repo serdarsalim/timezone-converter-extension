@@ -21,6 +21,7 @@ const headerAddButtonEl = document.querySelector("#header-add-button");
 const addButtonWrapEl = document.querySelector(".add-button-wrap");
 const calendarToggleButtonEl = document.querySelector("#calendar-toggle-button");
 const headerResetButtonEl = document.querySelector("#header-reset-button");
+const headerCopyButtonEl = document.querySelector("#header-copy-button");
 const settingsButtonEl = document.querySelector("#settings-button");
 const settingsPopoverEl = document.querySelector("#settings-popover");
 const calendarDateEl = document.querySelector("#calendar-date");
@@ -389,6 +390,39 @@ function zonedLocalToUtcMs(timeZone, year, month, day, totalMinutes) {
 
 function getReferenceMs() {
   return state.compareState?.referenceMs ?? null;
+}
+
+function buildComparisonSnapshot() {
+  const referenceMs = getReferenceMs();
+  if (referenceMs === null) {
+    return "";
+  }
+
+  return state.cities
+    .map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`)
+    .join("\n");
+}
+
+async function copyComparisonSnapshot() {
+  const snapshot = buildComparisonSnapshot();
+  if (!snapshot) {
+    return;
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(snapshot);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = snapshot;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
 }
 
 function getCompareSourceId() {
@@ -1108,6 +1142,7 @@ function render() {
   addButtonWrapEl.classList.toggle("hidden", isCalendarView);
   calendarToggleButtonEl.classList.toggle("is-active", isCalendarView);
   headerResetButtonEl.classList.toggle("hidden", !state.compareState);
+  headerCopyButtonEl.classList.toggle("hidden", !state.compareState);
   settingsPopoverEl.classList.toggle("hidden", !state.settingsOpen);
   settingsPopoverEl.querySelectorAll('[data-role="time-format"]').forEach((button) => {
     button.classList.toggle("is-active", button.dataset.format === state.preferences.timeFormat);
@@ -2037,6 +2072,17 @@ headerResetButtonEl.addEventListener("click", async () => {
   state.editingTimeDraft = null;
   await persist();
   render();
+});
+
+headerCopyButtonEl.addEventListener("click", async () => {
+  if (!state.compareState) {
+    return;
+  }
+  try {
+    await copyComparisonSnapshot();
+  } catch (error) {
+    console.error(error);
+  }
 });
 
 settingsButtonEl.addEventListener("click", (event) => {
