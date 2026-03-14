@@ -36,6 +36,7 @@ const calendarTitleEl = document.querySelector("#calendar-title");
 const calendarPreviewListEl = document.querySelector("#calendar-preview-list");
 const calendarSubmitEl = document.querySelector("#calendar-submit");
 const durationOptionsEl = document.querySelector("#duration-options");
+const durationValueEl = document.querySelector("#duration-value");
 
 const state = {
   cities: [],
@@ -660,6 +661,46 @@ function getCalendarTimeParts() {
   };
 }
 
+const CALENDAR_DURATION_STEPS = [15, 30, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420, 450, 480];
+
+function normalizeCalendarDuration(totalMinutes) {
+  if (!Number.isFinite(totalMinutes)) {
+    return 60;
+  }
+  let closest = CALENDAR_DURATION_STEPS[0];
+  let closestDistance = Math.abs(totalMinutes - closest);
+  for (const step of CALENDAR_DURATION_STEPS) {
+    const distance = Math.abs(totalMinutes - step);
+    if (distance < closestDistance) {
+      closest = step;
+      closestDistance = distance;
+    }
+  }
+  return closest;
+}
+
+function formatDurationLabel(totalMinutes) {
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!minutes) {
+    return `${hours}h`;
+  }
+  return `${hours}h ${minutes}m`;
+}
+
+function stepCalendarDuration(direction) {
+  const current = normalizeCalendarDuration(state.calendar.durationMinutes || 60);
+  const currentIndex = Math.max(0, CALENDAR_DURATION_STEPS.indexOf(current));
+  const nextIndex = Math.min(
+    CALENDAR_DURATION_STEPS.length - 1,
+    Math.max(0, currentIndex + direction)
+  );
+  state.calendar.durationMinutes = CALENDAR_DURATION_STEPS[nextIndex];
+}
+
 function setCalendarTimeParts(nextHour, nextMinute, nextPeriod = "") {
   const rawHour = String(nextHour ?? "").replace(/\D/g, "");
   const rawMinute = String(nextMinute ?? "").replace(/\D/g, "");
@@ -910,12 +951,12 @@ function ensureCalendarState(force = false) {
   const baseDate = new Date(Date.UTC(current.year, current.month - 1, current.day, 12, 0, 0));
   state.calendar.date = formatDateInputValue(baseDate);
   state.calendar.time = formatTimeInputValue(current.minutes);
-  state.calendar.durationMinutes = state.calendar.durationMinutes || 30;
+  state.calendar.durationMinutes = normalizeCalendarDuration(state.calendar.durationMinutes || 60);
   state.calendar.initializedForKey = key;
 }
 
 function getCalendarDurationMinutes() {
-  return state.calendar.durationMinutes || 30;
+  return normalizeCalendarDuration(state.calendar.durationMinutes || 60);
 }
 
 function getCalendarReferenceContext() {
@@ -966,16 +1007,13 @@ function getCalendarEventUrl() {
   const detailsLines = [
     "",
     "---------------------------------------------",
-    "Time across timezones:",
-    "",
     ...includedCities.map((city) => `${city.label}: ${formatCalendarLine(city, referenceMs)}`),
     "",
-    "Created with ASR World Clock",
-    "---------------------------------------------"
+    "Created with ASR World Clock"
   ];
 
   const params = new URLSearchParams({
-    text: state.calendar.title.trim() || "Meeting from ASR World Clock",
+    text: state.calendar.title.trim() || "Time to meet",
     dates: `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
     details: detailsLines.join("\n"),
     ctz: baseCity.timeZone
@@ -1187,12 +1225,10 @@ function renderCalendarView() {
   calendarMinuteEl.value = timeParts.minute;
   calendarPeriodEl.value = timeParts.period || "AM";
   calendarPeriodEl.classList.toggle("hidden", state.preferences.timeFormat === "24h");
+  calendarHourEl.closest(".calendar-time-editor")?.classList.toggle("is-24h", state.preferences.timeFormat === "24h");
   calendarTitleEl.value = state.calendar.title;
 
-  durationOptionsEl.querySelectorAll('[data-role="duration-option"]').forEach((button) => {
-    const isActive = Number(button.dataset.minutes) === state.calendar.durationMinutes;
-    button.classList.toggle("is-active", isActive);
-  });
+  durationValueEl.textContent = formatDurationLabel(getCalendarDurationMinutes());
 
   const context = getCalendarReferenceContext();
   const fragment = document.createDocumentFragment();
@@ -2173,12 +2209,18 @@ calendarTitleEl.addEventListener("input", () => {
 });
 
 durationOptionsEl.addEventListener("click", (event) => {
-  if (event.target?.dataset?.role !== "duration-option") {
+  if (event.target?.dataset?.role !== "duration-step") {
     return;
   }
-  state.calendar.durationMinutes = Number(event.target.dataset.minutes) || 30;
+  stepCalendarDuration(Number(event.target.dataset.direction) || 0);
   renderCalendarView();
 });
+
+durationOptionsEl.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  stepCalendarDuration(event.deltaY > 0 ? -1 : 1);
+  renderCalendarView();
+}, { passive: false });
 
 calendarPreviewListEl.addEventListener("click", async (event) => {
   const toggle = event.target?.closest('[data-role="calendar-city-toggle"]');

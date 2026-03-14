@@ -90,11 +90,12 @@
             </label>
             <div class="calendar-field">
               <span class="calendar-label">Duration</span>
-              <div class="duration-options" id="duration-options">
-                <button class="duration-option" data-role="duration-option" data-minutes="15" type="button">15m</button>
-                <button class="duration-option is-active" data-role="duration-option" data-minutes="30" type="button">30m</button>
-                <button class="duration-option" data-role="duration-option" data-minutes="45" type="button">45m</button>
-                <button class="duration-option" data-role="duration-option" data-minutes="60" type="button">1h</button>
+              <div class="duration-stepper" id="duration-options">
+                <span class="duration-stepper-value" id="duration-value">1h</span>
+                <div class="duration-stepper-controls">
+                  <button class="duration-stepper-button" data-role="duration-step" data-direction="1" type="button" aria-label="Increase duration">▲</button>
+                  <button class="duration-stepper-button" data-role="duration-step" data-direction="-1" type="button" aria-label="Decrease duration">▼</button>
+                </div>
               </div>
             </div>
             <div class="calendar-preview">
