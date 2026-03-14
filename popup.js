@@ -8,10 +8,10 @@ document.documentElement.dataset.theme = "light";
 document.body.dataset.theme = "light";
 
 const DEFAULT_CITIES = [
-  { id: crypto.randomUUID(), label: "Local Time", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-  { id: crypto.randomUUID(), label: "Istanbul", timeZone: "Europe/Istanbul" },
-  { id: crypto.randomUUID(), label: "Vienna", timeZone: "Europe/Vienna" },
-  { id: crypto.randomUUID(), label: "Dublin", timeZone: "Europe/Dublin" }
+  { id: crypto.randomUUID(), label: "Local Time", timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, lat: null, lon: null },
+  { id: crypto.randomUUID(), label: "Istanbul", timeZone: "Europe/Istanbul", lat: 41.0138, lon: 28.9497 },
+  { id: crypto.randomUUID(), label: "Vienna", timeZone: "Europe/Vienna", lat: 48.2085, lon: 16.3721 },
+  { id: crypto.randomUUID(), label: "Dublin", timeZone: "Europe/Dublin", lat: 53.3498, lon: -6.2603 }
 ];
 
 const cardsEl = document.querySelector("#cards");
@@ -128,6 +128,19 @@ function clearCityLookupState() {
   state.cityLookup.results = [];
   state.cityLookup.loading = false;
   state.cityLookup.error = "";
+}
+
+function normalizeCoordinate(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
 }
 
 function getCityLookupResults(mode, query, cityId = null) {
@@ -261,6 +274,8 @@ function buildSuggestionList(results, emptyText, mode, cityId = null) {
       }
       option.dataset.label = result.label;
       option.dataset.timeZone = result.timeZone;
+      option.dataset.lat = String(result.lat ?? "");
+      option.dataset.lon = String(result.lon ?? "");
 
       const copy = document.createElement("span");
       copy.className = "name-suggestion-copy";
@@ -390,7 +405,9 @@ function sanitizeStoredCities(cities) {
   return cities.map((city) => ({
     id: city.id,
     label: city.label,
-    timeZone: city.timeZone
+    timeZone: city.timeZone,
+    lat: normalizeCoordinate(city.lat),
+    lon: normalizeCoordinate(city.lon)
   }));
 }
 
@@ -627,6 +644,54 @@ function formatCalendarPreviewLine(city, referenceMs) {
   return `${values.weekday}, ${values.month} ${values.day} · ${timeValue}`;
 }
 
+function toRadians(value) {
+  return value * (Math.PI / 180);
+}
+
+function getDayOfYearUtc(date) {
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const current = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  return Math.floor((current - start) / 86400000);
+}
+
+function getSolarAltitude(referenceMs, latitude, longitude) {
+  const date = new Date(referenceMs);
+  const dayOfYear = getDayOfYearUtc(date);
+  const utcMinutes = (
+    date.getUTCHours() * 60 +
+    date.getUTCMinutes() +
+    date.getUTCSeconds() / 60 +
+    date.getUTCMilliseconds() / 60000
+  );
+  const fractionalYear = (2 * Math.PI / 365) * (dayOfYear - 1 + ((utcMinutes / 60) - 12) / 24);
+  const equationOfTime = 229.18 * (
+    0.000075 +
+    0.001868 * Math.cos(fractionalYear) -
+    0.032077 * Math.sin(fractionalYear) -
+    0.014615 * Math.cos(2 * fractionalYear) -
+    0.040849 * Math.sin(2 * fractionalYear)
+  );
+  const declination = (
+    0.006918 -
+    0.399912 * Math.cos(fractionalYear) +
+    0.070257 * Math.sin(fractionalYear) -
+    0.006758 * Math.cos(2 * fractionalYear) +
+    0.000907 * Math.sin(2 * fractionalYear) -
+    0.002697 * Math.cos(3 * fractionalYear) +
+    0.00148 * Math.sin(3 * fractionalYear)
+  );
+  const trueSolarTime = (utcMinutes + equationOfTime + 4 * longitude + 1440) % 1440;
+  const hourAngle = trueSolarTime / 4 - 180;
+  const hourAngleRadians = toRadians(hourAngle);
+  const latitudeRadians = toRadians(latitude);
+  const cosineZenith = (
+    Math.sin(latitudeRadians) * Math.sin(declination) +
+    Math.cos(latitudeRadians) * Math.cos(declination) * Math.cos(hourAngleRadians)
+  );
+  const clampedCosineZenith = Math.min(1, Math.max(-1, cosineZenith));
+  return 90 - (Math.acos(clampedCosineZenith) * 180 / Math.PI);
+}
+
 function ensureCalendarState(force = false) {
   const baseCity = getBaseCalendarCity();
   if (!baseCity) {
@@ -775,6 +840,28 @@ function getStatus(minutes) {
   return null;
 }
 
+function getStatusSymbol(status) {
+  if (status === "sun") {
+    return "☀";
+  }
+  if (status === "night") {
+    return "☾";
+  }
+  return "";
+}
+
+function getCityStatus(city, referenceMs = Date.now()) {
+  const lat = normalizeCoordinate(city?.lat);
+  const lon = normalizeCoordinate(city?.lon);
+  if (lat !== null && lon !== null) {
+    const altitude = getSolarAltitude(referenceMs, lat, lon);
+    if (Number.isFinite(altitude)) {
+      return altitude > -0.833 ? "sun" : "night";
+    }
+  }
+  return getStatus(formatParts(city.timeZone, referenceMs).minutes);
+}
+
 async function persist() {
   await storage.set({
     cities: state.cities,
@@ -804,6 +891,47 @@ function focusAndSelect(selector, focusOptions = {}) {
   });
 }
 
+async function hydrateStoredCityCoordinates() {
+  const pendingCities = state.cities.filter((city) => city.lat === null || city.lon === null);
+  if (!pendingCities.length) {
+    return;
+  }
+
+  try {
+    const response = await requestCitySearch({
+      type: "lookup-cities",
+      cities: pendingCities.map((city) => ({
+        label: city.label,
+        timeZone: city.timeZone
+      }))
+    });
+    let changed = false;
+    response.results?.forEach((match, index) => {
+      const city = pendingCities[index];
+      if (!city || !match) {
+        return;
+      }
+      const lat = normalizeCoordinate(match.lat);
+      const lon = normalizeCoordinate(match.lon);
+      if (lat === null || lon === null) {
+        return;
+      }
+      if (city.lat === lat && city.lon === lon) {
+        return;
+      }
+      city.lat = lat;
+      city.lon = lon;
+      changed = true;
+    });
+    if (changed) {
+      await persist();
+      render();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 async function initialize() {
   const stored = await storage.get();
   const normalized = normalizeStoredState(stored);
@@ -811,6 +939,7 @@ async function initialize() {
   state.compareState = normalized.compareState;
   state.preferences = normalized.preferences;
   render();
+  hydrateStoredCityCoordinates();
   window.setInterval(() => {
     if (state.activeView === "calendar" || state.editingNameId || state.editingTimeId || state.addMode || state.dragId) {
       return;
@@ -849,6 +978,16 @@ function renderCalendarView() {
       const timeLabel = document.createElement("span");
       timeLabel.className = "calendar-preview-time";
       timeLabel.textContent = formatCalendarPreviewLine(city, context.referenceMs);
+
+      const status = getCityStatus(city, context.referenceMs);
+      if (status) {
+        const statusIcon = document.createElement("span");
+        statusIcon.className = `calendar-preview-status is-${status}`;
+        statusIcon.textContent = getStatusSymbol(status);
+        statusIcon.title = status === "sun" ? "Daylight" : "Night";
+        statusIcon.setAttribute("aria-label", status === "sun" ? "Daylight" : "Night");
+        timeLabel.appendChild(statusIcon);
+      }
 
       row.append(cityLabel, timeLabel);
       fragment.appendChild(row);
@@ -1017,7 +1156,7 @@ function render() {
       removeButton.dataset.id = city.id;
       metaEl.appendChild(removeButton);
     } else {
-      const status = getStatus(minutes);
+      const status = getCityStatus(city, getReferenceMs());
       if (status) {
         const pill = document.createElement("span");
         pill.className = `meta-pill is-${status}`;
@@ -1197,8 +1336,12 @@ async function commitNameEdit(id, value) {
   if (suggestion) {
     city.label = suggestion.label;
     city.timeZone = suggestion.timeZone;
+    city.lat = normalizeCoordinate(suggestion.lat);
+    city.lon = normalizeCoordinate(suggestion.lon);
   } else {
     city.label = titleCase(trimmed);
+    city.lat = null;
+    city.lon = null;
   }
 
   state.editingNameId = null;
@@ -1209,7 +1352,7 @@ async function commitNameEdit(id, value) {
   render();
 }
 
-async function applyNameSuggestion(id, label, timeZone) {
+async function applyNameSuggestion(id, label, timeZone, lat, lon) {
   const city = state.cities.find((item) => item.id === id);
   if (!city) {
     return;
@@ -1217,6 +1360,8 @@ async function applyNameSuggestion(id, label, timeZone) {
 
   city.label = label;
   city.timeZone = timeZone;
+  city.lat = normalizeCoordinate(lat);
+  city.lon = normalizeCoordinate(lon);
   state.editingNameId = null;
   state.editingNameDraft = "";
   state.editingNameTouched = false;
@@ -1279,7 +1424,9 @@ async function addCity(value) {
   state.cities.push({
     id: crypto.randomUUID(),
     label: suggestion.label,
-    timeZone: suggestion.timeZone
+    timeZone: suggestion.timeZone,
+    lat: normalizeCoordinate(suggestion.lat),
+    lon: normalizeCoordinate(suggestion.lon)
   });
   state.addMode = false;
   state.addDraft = "";
@@ -1289,11 +1436,13 @@ async function addCity(value) {
   render();
 }
 
-async function addCitySuggestion(label, timeZone) {
+async function addCitySuggestion(label, timeZone, lat, lon) {
   state.cities.push({
     id: crypto.randomUUID(),
     label,
-    timeZone
+    timeZone,
+    lat: normalizeCoordinate(lat),
+    lon: normalizeCoordinate(lon)
   });
   state.addMode = false;
   state.addDraft = "";
@@ -1643,7 +1792,9 @@ cardsEl.addEventListener("mousedown", async (event) => {
     await applyNameSuggestion(
       option.dataset.id,
       option.dataset.label,
-      option.dataset.timeZone
+      option.dataset.timeZone,
+      option.dataset.lat,
+      option.dataset.lon
     );
   }
 
@@ -1652,7 +1803,9 @@ cardsEl.addEventListener("mousedown", async (event) => {
     const option = event.target.closest('[data-role="add-suggestion"]');
     await addCitySuggestion(
       option.dataset.label,
-      option.dataset.timeZone
+      option.dataset.timeZone,
+      option.dataset.lat,
+      option.dataset.lon
     );
   }
 });

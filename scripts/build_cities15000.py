@@ -33,11 +33,19 @@ def main() -> int:
             feature_class = row[6]
             name = row[1].strip()
             ascii_name = row[2].strip()
+            latitude_raw = row[4].strip()
+            longitude_raw = row[5].strip()
             country_code = row[8].strip()
             population_raw = row[14].strip()
             time_zone = row[17].strip()
 
             if feature_class != "P" or not name or not time_zone:
+                continue
+
+            try:
+                latitude = float(latitude_raw)
+                longitude = float(longitude_raw)
+            except ValueError:
                 continue
 
             population = int(population_raw or "0")
@@ -52,6 +60,8 @@ def main() -> int:
                 "timeZone": time_zone,
                 "countryCode": country_code,
                 "population": population,
+                "lat": round(latitude, 4),
+                "lon": round(longitude, 4),
             }
 
     cities = sorted(
@@ -69,6 +79,8 @@ def main() -> int:
                 city["timeZone"],
                 city["countryCode"],
                 city["population"],
+                city["lat"],
+                city["lon"],
             ]
             for city in cities
         ]

@@ -18,7 +18,7 @@ async function loadDataset() {
         return response.json();
       })
       .then((payload) => {
-        records = payload.cities.map(([label, asciiLabel, timeZone, countryCode, population]) => {
+        records = payload.cities.map(([label, asciiLabel, timeZone, countryCode, population, lat, lon]) => {
           const labelNorm = normalize(label);
           const asciiNorm = normalize(asciiLabel);
           const timeZoneNorm = normalize(timeZone.replaceAll("_", " "));
@@ -27,6 +27,8 @@ async function loadDataset() {
             timeZone,
             countryCode,
             population,
+            lat,
+            lon,
             labelNorm,
             asciiNorm,
             timeZoneNorm,
@@ -86,6 +88,8 @@ function searchRecords(query, limit = 6) {
       timeZone: record.timeZone,
       countryCode: record.countryCode,
       population: record.population,
+      lat: record.lat,
+      lon: record.lon,
       rank: match.rank,
       matchType: match.matchType
     };
@@ -119,6 +123,22 @@ function resolveRecord(value) {
   return matches[0] || null;
 }
 
+function lookupCities(cities) {
+  const byKey = new Map(records.map((record) => [`${normalize(record.label)}|${record.timeZone}`, record]));
+  return (cities || []).map((city) => {
+    const record = byKey.get(`${normalize(city?.label)}|${city?.timeZone}`);
+    if (!record) {
+      return null;
+    }
+    return {
+      label: record.label,
+      timeZone: record.timeZone,
+      lat: record.lat,
+      lon: record.lon
+    };
+  });
+}
+
 self.addEventListener("message", async (event) => {
   const { type, requestId, query, limit, value } = event.data || {};
 
@@ -145,6 +165,15 @@ self.addEventListener("message", async (event) => {
 
     if (type === "warmup") {
       self.postMessage({ type, requestId, ok: true });
+      return;
+    }
+
+    if (type === "lookup-cities") {
+      self.postMessage({
+        type,
+        requestId,
+        results: lookupCities(event.data?.cities)
+      });
     }
   } catch (error) {
     self.postMessage({

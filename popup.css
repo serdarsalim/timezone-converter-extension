@@ -16,6 +16,8 @@
   --button-hover: rgba(17, 19, 26, 0.09);
   --primary: #0a84ff;
   --primary-text: #fff;
+  --sun-color: #c98a1a;
+  --moon-color: #5f6f8f;
   --scroll-thumb: rgba(17, 19, 26, 0.24);
   --field-border: rgba(17, 19, 26, 0.08);
   --field-bg: rgba(17, 19, 26, 0.04);
@@ -57,6 +59,8 @@
   --button-hover: rgba(255, 255, 255, 0.12);
   --primary: #0a84ff;
   --primary-text: #fff;
+  --sun-color: #f4bf4f;
+  --moon-color: #aeb9d6;
   --scroll-thumb: rgba(255, 255, 255, 0.18);
   --field-border: rgba(255, 255, 255, 0.08);
   --field-bg: rgba(255, 255, 255, 0.06);
@@ -393,11 +397,30 @@ body[data-surface="sidepanel"] .app-header {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
   font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--muted);
   text-align: right;
+}
+
+.calendar-preview-status {
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.calendar-preview-status.is-sun {
+  color: var(--sun-color);
+}
+
+.calendar-preview-status.is-night {
+  color: var(--moon-color);
 }
 
 .calendar-submit-wrap {
