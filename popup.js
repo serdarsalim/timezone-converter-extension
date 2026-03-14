@@ -47,6 +47,7 @@ const state = {
   activeView: "timezones",
   compareState: null,
   settingsOpen: false,
+  solarDetailsOpen: false,
   focusTarget: null,
   calendar: {
     date: "",
@@ -76,6 +77,7 @@ let citySearchWorker = null;
 let citySearchWarmPromise = null;
 let citySearchRequestId = 0;
 const citySearchPending = new Map();
+let dragHandleArmedId = null;
 
 function isFirstTimezonePinned() {
   return state.preferences.pinFirstTimezone !== false;
@@ -692,6 +694,103 @@ function getSolarAltitude(referenceMs, latitude, longitude) {
   return 90 - (Math.acos(clampedCosineZenith) * 180 / Math.PI);
 }
 
+function getSolarDayOfYear(year, month, day) {
+  const start = Date.UTC(year, 0, 0);
+  const current = Date.UTC(year, month - 1, day);
+  return Math.floor((current - start) / 86400000);
+}
+
+function getSolarDeclinationAndEquation(dayOfYear) {
+  const fractionalYear = (2 * Math.PI / 365) * (dayOfYear - 1);
+  const equationOfTime = 229.18 * (
+    0.000075 +
+    0.001868 * Math.cos(fractionalYear) -
+    0.032077 * Math.sin(fractionalYear) -
+    0.014615 * Math.cos(2 * fractionalYear) -
+    0.040849 * Math.sin(2 * fractionalYear)
+  );
+  const declination = (
+    0.006918 -
+    0.399912 * Math.cos(fractionalYear) +
+    0.070257 * Math.sin(fractionalYear) -
+    0.006758 * Math.cos(2 * fractionalYear) +
+    0.000907 * Math.sin(2 * fractionalYear) -
+    0.002697 * Math.cos(3 * fractionalYear) +
+    0.00148 * Math.sin(3 * fractionalYear)
+  );
+  return { declination, equationOfTime };
+}
+
+function getSunEventTimes(city, referenceMs = Date.now()) {
+  const lat = normalizeCoordinate(city?.lat);
+  const lon = normalizeCoordinate(city?.lon);
+  if (lat === null || lon === null) {
+    return null;
+  }
+
+  const parts = formatParts(city.timeZone, referenceMs);
+  const dayOfYear = getSolarDayOfYear(parts.year, parts.month, parts.day);
+  const { declination, equationOfTime } = getSolarDeclinationAndEquation(dayOfYear);
+  const latitudeRadians = toRadians(lat);
+  const zenithRadians = toRadians(90.833);
+  const cosineHourAngle = (
+    (Math.cos(zenithRadians) / (Math.cos(latitudeRadians) * Math.cos(declination))) -
+    Math.tan(latitudeRadians) * Math.tan(declination)
+  );
+
+  if (cosineHourAngle > 1) {
+    return { type: "polar-night" };
+  }
+  if (cosineHourAngle < -1) {
+    return { type: "polar-day" };
+  }
+
+  const hourAngleDegrees = Math.acos(Math.min(1, Math.max(-1, cosineHourAngle))) * 180 / Math.PI;
+  const solarNoonUtcMinutes = 720 - (4 * lon) - equationOfTime;
+  const sunriseUtcMinutes = solarNoonUtcMinutes - (4 * hourAngleDegrees);
+  const sunsetUtcMinutes = solarNoonUtcMinutes + (4 * hourAngleDegrees);
+  const baseUtcMidnight = Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0, 0);
+
+  return {
+    type: "normal",
+    sunriseMs: baseUtcMidnight + sunriseUtcMinutes * 60000,
+    sunsetMs: baseUtcMidnight + sunsetUtcMinutes * 60000
+  };
+}
+
+function formatSolarEventTime(city, eventMs) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: city.timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: state.preferences.timeFormat !== "24h"
+  });
+  const parts = formatter.formatToParts(new Date(eventMs));
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+  if (state.preferences.timeFormat === "24h") {
+    return `${String(Number(values.hour)).padStart(2, "0")}:${values.minute}`;
+  }
+  return `${values.hour}:${values.minute} ${values.dayPeriod}`;
+}
+
+function formatSolarDetailsLine(city, referenceMs = Date.now()) {
+  const events = getSunEventTimes(city, referenceMs);
+  if (!events) {
+    return null;
+  }
+  if (events.type === "polar-day") {
+    return "24h daylight";
+  }
+  if (events.type === "polar-night") {
+    return "24h night";
+  }
+  return `↑ ${formatSolarEventTime(city, events.sunriseMs)} · ↓ ${formatSolarEventTime(city, events.sunsetMs)}`;
+}
+
 function ensureCalendarState(force = false) {
   const baseCity = getBaseCalendarCity();
   if (!baseCity) {
@@ -1046,8 +1145,10 @@ function render() {
     const dateEl = node.querySelector(".card-date");
     const metaEl = node.querySelector(".card-meta");
 
-    const { dateText, timeText, minutes } = getLiveDatePartsForCity(city);
-    dateEl.textContent = dateText;
+    const { dateText, timeText } = getLiveDatePartsForCity(city);
+    const solarLine = formatSolarDetailsLine(city, getReferenceMs());
+    dateEl.textContent = state.solarDetailsOpen && solarLine ? solarLine : dateText;
+    dateEl.classList.toggle("is-solar-details", state.solarDetailsOpen && Boolean(solarLine));
     metaEl.classList.toggle("is-editing", state.editingNameId === city.id);
 
     if (state.editingNameId === city.id) {
@@ -1158,9 +1259,14 @@ function render() {
     } else {
       const status = getCityStatus(city, getReferenceMs());
       if (status) {
-        const pill = document.createElement("span");
+        const pill = document.createElement("button");
+        pill.type = "button";
         pill.className = `meta-pill is-${status}`;
-        pill.title = status === "sun" ? "Daylight" : "Night";
+        pill.dataset.role = "solar-toggle";
+        pill.dataset.id = city.id;
+        pill.title = state.solarDetailsOpen ? "Show date" : "Show sunrise and sunset";
+        pill.setAttribute("aria-pressed", state.solarDetailsOpen ? "true" : "false");
+        pill.setAttribute("aria-label", state.solarDetailsOpen ? "Show date" : "Show sunrise and sunset");
         metaEl.appendChild(pill);
       }
     }
@@ -1242,11 +1348,11 @@ function handleDragStart(event) {
     event.preventDefault();
     return;
   }
-  const role = event.target?.dataset?.role;
-  if (role?.includes("button") || role?.includes("input")) {
+  if (dragHandleArmedId !== card.dataset.id) {
     event.preventDefault();
     return;
   }
+  dragHandleArmedId = null;
   state.dragId = card.dataset.id;
   state.dragTargetId = null;
   event.dataTransfer.setData("text/plain", state.dragId);
@@ -1297,6 +1403,7 @@ async function handleDrop(event) {
 }
 
 function handleDragEnd() {
+  dragHandleArmedId = null;
   resetDragState();
   clearDragClasses();
   render();
@@ -1569,6 +1676,13 @@ cardsEl.addEventListener("click", async (event) => {
     return;
   }
 
+  if (role === "solar-toggle") {
+    state.solarDetailsOpen = !state.solarDetailsOpen;
+    state.settingsOpen = false;
+    render();
+    return;
+  }
+
   if (role === "remove-city") {
     await removeCity(id);
     return;
@@ -1779,6 +1893,14 @@ cardsEl.addEventListener("wheel", (event) => {
 }, { passive: false });
 
 cardsEl.addEventListener("mousedown", async (event) => {
+  const dragHandle = event.target?.closest('[data-role="drag-handle"]');
+  if (dragHandle) {
+    dragHandleArmedId = dragHandle.closest(".city-card")?.dataset.id || null;
+    return;
+  }
+
+  dragHandleArmedId = null;
+
   if (event.target?.closest('[data-role="remove-city"]')) {
     event.preventDefault();
     const button = event.target.closest('[data-role="remove-city"]');
@@ -1808,6 +1930,10 @@ cardsEl.addEventListener("mousedown", async (event) => {
       option.dataset.lon
     );
   }
+});
+
+cardsEl.addEventListener("mouseup", () => {
+  dragHandleArmedId = null;
 });
 
 initialize();
