@@ -300,6 +300,10 @@ function isCompareSource(cityId) {
   return getCompareSourceId() === cityId;
 }
 
+function isActiveTimeSource(cityId) {
+  return state.editingTimeId === cityId;
+}
+
 function sanitizeStoredCities(cities) {
   return cities.map((city) => ({
     id: city.id,
@@ -835,7 +839,7 @@ function render() {
     const node = cardTemplate.content.firstElementChild.cloneNode(true);
     node.dataset.id = city.id;
     node.draggable = !isPinnedCity(city.id);
-    node.classList.toggle("is-overridden", isCompareSource(city.id));
+    node.classList.toggle("is-overridden", isActiveTimeSource(city.id));
     node.classList.toggle("is-pinned", isPinnedCity(city.id));
     node.classList.toggle("is-dragging", state.dragId === city.id);
     node.classList.toggle("is-drag-target", state.dragTargetId === city.id);
